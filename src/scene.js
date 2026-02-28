@@ -2,6 +2,7 @@ import { Character }         from './Character.js';
 import { SimulationEngine } from './Engine.js';
 import { AIEngine }          from './AIEngine.js';
 import { OBJECTS }           from './objects.js';
+import { showSpeech }        from './speechBubble.js';
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
@@ -22,23 +23,33 @@ const WALK_DIRS = [
   { key: 'left',  start: 144, end: 149 }, // mirrored via flipX
 ];
 
-// Character definitions — tile positions within walkable area (col 1–17, row 4–11)
+// Character definitions — tile positions within walkable area (col 1–17, row 2–9)
 const CHARS = [
-  { name: 'Amelia', label: 'Maple', tx:  6, ty: 8 },
-  { name: 'Lucy',   label: 'Sol',   tx: 10, ty: 7 },
-  { name: 'Ash',    label: 'Nyx',   tx: 14, ty: 6 },
+  {
+    name: 'Amelia', label: 'Maple', tx: 6, ty: 7,
+    dialogue: ['Perfect brew today~', 'Want some tea?', 'The kitchen smells amazing'],
+  },
+  {
+    name: 'Lucy', label: 'Sol', tx: 10, ty: 6,
+    dialogue: ['The bonsai looks healthy', 'I should water the plants', 'Such peaceful light...'],
+  },
+  {
+    name: 'Ash', label: 'Nyx', tx: 14, ty: 5,
+    dialogue: ['I need more paint...', 'This light is perfect for sketching', 'Where did I put my brush?'],
+  },
 ];
 
 // ─── Walkable grid ─────────────────────────────────────────────────────────────
-// 19 cols × 13 rows.  Interior floor: cols 1–17, rows 4–11.
-// Kim will refine this in Tiled; for now we keep it rectangular.
+// 19 cols × 13 rows.
+// Interior floor (main room): cols 1–17, rows 2–9.
+// Rows 0–1 = roof/top wall; rows 10–12 = genkan / exterior — not walkable.
 
 function buildWalkableGrid() {
   const grid = [];
   for (let row = 0; row < GRID_ROWS; row++) {
     const r = [];
     for (let col = 0; col < GRID_COLS; col++) {
-      r.push(col >= 1 && col <= 17 && row >= 4 && row <= 11);
+      r.push(col >= 1 && col <= 17 && row >= 2 && row <= 9);
     }
     grid.push(r);
   }
@@ -104,7 +115,7 @@ export class CafeScene extends Phaser.Scene {
     OBJECTS.forEach(obj => this.engine.addObject(obj));
 
     // Characters
-    CHARS.forEach(({ name, label, tx, ty }) => {
+    CHARS.forEach(({ name, label, tx, ty, dialogue }) => {
       const initPx = tx * TILE_SIZE + TILE_SIZE / 2;
       const initPy = (ty + 1) * TILE_SIZE;
 
@@ -124,6 +135,7 @@ export class CafeScene extends Phaser.Scene {
       const char = new Character({
         name, label, tx, ty, sprite, nameLabel,
         walkable, gridCols: GRID_COLS, gridRows: GRID_ROWS,
+        dialogue,
       });
 
       this.engine.addCharacter(char);
@@ -144,5 +156,13 @@ export class CafeScene extends Phaser.Scene {
   update(_time, delta) {
     this.engine.update(delta);
     this.clockText.setText(this.engine.getSimTimeString());
+
+    // Show speech bubbles queued by the engine
+    for (const char of this.engine.characters) {
+      if (char.pendingSpeech && char.sprite) {
+        showSpeech(this, char.sprite, char.pendingSpeech);
+        char.pendingSpeech = null;
+      }
+    }
   }
 }

@@ -133,6 +133,13 @@ export class Character {
     this.currentDialogue = null;
     this.dialogueTimer   = 0;
 
+    // Preset dialogue lines (used for random speech bubbles)
+    this.dialogue     = config.dialogue || [];
+    // Counts down; when it hits 0 Engine sets pendingSpeech
+    this.speechTimer  = 20000 + Math.random() * 20000; // 20–40 s
+    // Scene reads this each frame and shows a bubble, then clears it
+    this.pendingSpeech = null;
+
     this.walkable  = config.walkable;
     this.gridCols  = config.gridCols;
     this.gridRows  = config.gridRows;

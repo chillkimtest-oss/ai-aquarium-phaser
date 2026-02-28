@@ -56,6 +56,16 @@ export class SimulationEngine {
         this._doWander(char);
       }
 
+      // Tick speech timer — fire a random line when it expires
+      if (char.dialogue.length > 0 && char.pendingSpeech === null) {
+        char.speechTimer -= deltaMs;
+        if (char.speechTimer <= 0) {
+          const idx = Math.floor(Math.random() * char.dialogue.length);
+          char.pendingSpeech = char.dialogue[idx];
+          char.speechTimer   = 20000 + Math.random() * 20000; // reset 20–40 s
+        }
+      }
+
       // Per-character update (movement, animations, sprite sync)
       char.update(deltaMs);
     }
