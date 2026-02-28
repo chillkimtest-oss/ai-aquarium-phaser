@@ -1,0 +1,69 @@
+{
+  "tile_size": 48,
+  "cols": 12,
+  "apartment": {
+    "wall_rows": [0, 1],
+    "floor_rows": [2, 3, 4, 5, 6, 7],
+    "furniture": [
+      {"sprite": "easel_painting.png", "col": 1, "row": 2},
+      {"sprite": "easel_blank.png", "col": 2, "row": 2},
+      {"sprite": "paint_supplies.png", "col": 1, "row": 4},
+      {"sprite": "bookshelf.png", "col": 4, "row": 2},
+      {"sprite": "sofa.png", "col": 6, "row": 3},
+      {"sprite": "coffee_table.png", "col": 6, "row": 5},
+      {"sprite": "lamp_floor.png", "col": 5, "row": 3},
+      {"sprite": "bed.png", "col": 9, "row": 2},
+      {"sprite": "nightstand.png", "col": 11, "row": 3},
+      {"sprite": "lamp_table.png", "col": 11, "row": 2},
+      {"sprite": "plant_tall.png", "col": 0, "row": 2},
+      {"sprite": "plant_small.png", "col": 8, "row": 6},
+      {"sprite": "wall_art_1.png", "col": 3, "row": 0},
+      {"sprite": "wall_art_2.png", "col": 7, "row": 0},
+      {"sprite": "wall_art_3.png", "col": 10, "row": 0}
+    ]
+  },
+  "slab_row": 8,
+  "cafe": {
+    "start_row": 9,
+    "wall_rows": [9, 10],
+    "floor_rows": [11, 12, 13, 14, 15, 16, 17],
+    "furniture": [
+      {"sprite": "counter_left.png", "col": 1, "row": 11},
+      {"sprite": "counter.png", "col": 2, "row": 11},
+      {"sprite": "espresso_machine.png", "col": 3, "row": 11},
+      {"sprite": "coffee_maker.png", "col": 4, "row": 11},
+      {"sprite": "display_case_stocked.png", "col": 5, "row": 10},
+      {"sprite": "cash_register.png", "col": 7, "row": 11},
+      {"sprite": "counter.png", "col": 8, "row": 11},
+      {"sprite": "counter_right.png", "col": 9, "row": 11},
+
+      {"sprite": "stool.png", "col": 3, "row": 12},
+      {"sprite": "stool.png", "col": 5, "row": 12},
+      {"sprite": "stool.png", "col": 7, "row": 12},
+
+      {"sprite": "chair_back.png", "col": 2, "row": 13},
+      {"sprite": "table_small.png", "col": 2, "row": 14},
+      {"sprite": "chair_front.png", "col": 2, "row": 15},
+      {"sprite": "chair_right.png", "col": 1, "row": 14},
+
+      {"sprite": "chair_back.png", "col": 6, "row": 13},
+      {"sprite": "table_small.png", "col": 6, "row": 14},
+      {"sprite": "chair_front.png", "col": 6, "row": 15},
+      {"sprite": "chair_left.png", "col": 7, "row": 14},
+
+      {"sprite": "table_large.png", "col": 9, "row": 13},
+      {"sprite": "chair_back.png", "col": 9, "row": 12},
+      {"sprite": "chair_back.png", "col": 10, "row": 12},
+      {"sprite": "chair_front.png", "col": 9, "row": 15},
+      {"sprite": "chair_front_b.png", "col": 10, "row": 15},
+
+      {"sprite": "plant_tall.png", "col": 0, "row": 14},
+      {"sprite": "plant_tall.png", "col": 11, "row": 14},
+      {"sprite": "plant_small.png", "col": 0, "row": 17},
+
+      {"sprite": "cafe/wall_art_cafe_1.png", "col": 1, "row": 9, "offset_y": 16},
+      {"sprite": "cafe/wall_art_cafe_2.png", "col": 10, "row": 9, "offset_y": 16},
+      {"sprite": "cafe/wall_shelf.png", "col": 4, "row": 9, "offset_y": 16}
+    ]
+  }
+}
