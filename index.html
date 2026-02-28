@@ -3,21 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AI Aquarium — Lofi Café (Phaser 3 POC)</title>
+  <title>AI Aquarium — Lofi Café</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-
     html, body {
-      width: 100%;
-      height: 100%;
+      width: 100%; height: 100%;
       background: #1a1a2e;
       overflow: hidden;
-      display: flex;
-      align-items: center;
-      justify-content: center;
     }
-
-    /* Crisp pixel art rendering — never blur the canvas */
     canvas {
       image-rendering: pixelated;
       image-rendering: crisp-edges;
@@ -26,54 +19,25 @@
   </style>
 </head>
 <body>
-
-<!-- Phaser 3 via CDN -->
 <script src="https://cdn.jsdelivr.net/npm/phaser@3.88.2/dist/phaser.min.js"></script>
-
 <script type="module">
-import { CafeScene } from './src/scene.js?v=1772296978';
-
-const MAP_W = 672;
-const MAP_H = 642 + 48 + 480;
-
-// Scale to fit browser window while keeping aspect ratio
-function calcZoom() {
-  const sx = window.innerWidth  / MAP_W;
-  const sy = window.innerHeight / MAP_H;
-  return Math.min(sx, sy, 1.0);  // never upscale beyond 1× for pixel art clarity
-}
+import { CafeScene } from './src/scene.js?v=3';
 
 const game = new Phaser.Game({
   type: Phaser.AUTO,
-
-  // World size = native map size
-  width:  MAP_W,
-  height: MAP_H,
-
-  backgroundColor: '#2a1f1a',
-
+  width:  672,
+  height: 1170,
+  backgroundColor: '#1a1a2e',
   scale: {
     mode:       Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
-    width:      MAP_W,
-    height:     MAP_H,
   },
-
-  // Disable anti-aliasing everywhere (pixel art)
   render: {
-    antialias:          false,
-    antialiasGL:        false,
-    pixelArt:           true,
+    antialias: false,
+    pixelArt:  true,
   },
-
   scene: CafeScene,
 });
-
-// Handle resize
-window.addEventListener('resize', () => {
-  game.scale.refresh();
-});
 </script>
-
 </body>
 </html>
