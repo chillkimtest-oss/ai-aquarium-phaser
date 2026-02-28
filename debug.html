@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Aquarium — Debug Dashboard</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #1a1a2e;
+      color: #e0ddd4;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 13px;
+      min-height: 100vh;
+      padding: 16px;
+    }
+
+    /* ── Header ── */
+    #header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #333;
+      padding-bottom: 12px;
+      margin-bottom: 16px;
+    }
+    #header h1 { font-size: 18px; color: #ffe8a3; letter-spacing: 0.05em; }
+    #clock { font-size: 22px; color: #ffe8a3; min-width: 110px; text-align: right; }
+
+    /* ── Controls ── */
+    #controls {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    button {
+      padding: 5px 12px;
+      background: #222240;
+      color: #e0ddd4;
+      border: 1px solid #444;
+      border-radius: 3px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 12px;
+      transition: background 0.1s;
+    }
+    button:hover { background: #2a2a5a; }
+    button.active { background: #2a3a5a; border-color: #6a9a8a; color: #9eebd4; }
+    .speed-btn.active { background: #3a2a5a; border-color: #8a6aaa; color: #c8a0ee; }
+    .ctrl-sep { width: 1px; height: 24px; background: #333; margin: 0 4px; }
+    .ctrl-label { color: #888; font-size: 11px; }
+
+    /* ── Layout ── */
+    .section-title {
+      font-size: 11px;
+      color: #777;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 10px;
+    }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 300px;
+      gap: 16px;
+    }
+    @media (max-width: 900px) { .main-grid { grid-template-columns: 1fr; } }
+
+    .left-col { display: flex; flex-direction: column; gap: 20px; }
+
+    /* ── Object cards ── */
+    #objects-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+      gap: 8px;
+    }
+
+    .object-card {
+      background: #222240;
+      border: 1px solid #333;
+      border-radius: 6px;
+      padding: 10px 14px;
+    }
+    .object-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+    .object-name { font-weight: bold; color: #c8d4e8; text-transform: capitalize; }
+
+    .state-badge {
+      padding: 2px 8px;
+      border-radius: 3px;
+      font-size: 11px;
+    }
+    .state-badge.idle   { background: #1a2a1a; color: #77cc77; border: 1px solid #2a4a2a; }
+    .state-badge.active { background: #2a2a1a; color: #cccc77; border: 1px solid #4a4a2a; }
+    .state-badge.done   { background: #1a1a2a; color: #88aacc; border: 1px solid #2a3a5a; }
+    .state-badge.other  { background: #2a1a2a; color: #cc88cc; border: 1px solid #4a2a4a; }
+
+    .position-hint { font-size: 10px; color: #555; }
+
+    .timer-bar {
+      height: 4px;
+      background: #2a2a40;
+      border-radius: 2px;
+      margin-top: 6px;
+      overflow: hidden;
+    }
+    .timer-fill {
+      height: 100%;
+      background: #6a8a5a;
+      border-radius: 2px;
+      transition: width 0.1s ease-out;
+    }
+    .timer-text { font-size: 10px; color: #666; margin-top: 2px; }
+
+    .interactions { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px; }
+    .interactions button {
+      padding: 3px 10px;
+      font-size: 11px;
+      background: #2a3a5a;
+      border-color: #3a4a6a;
+    }
+    .interactions button:hover { background: #3a4a7a; }
+
+    /* ── Character cards ── */
+    #characters-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 8px;
+    }
+    .character-card {
+      background: #20202e;
+      border: 1px solid #333;
+      border-radius: 6px;
+      padding: 10px 14px;
+    }
+    .character-name { font-size: 14px; color: #ffe8a3; font-weight: bold; margin-bottom: 8px; }
+    .char-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: #888;
+      margin-bottom: 3px;
+      align-items: center;
+    }
+    .char-value { color: #e0ddd4; }
+
+    .action-badge { padding: 1px 6px; border-radius: 2px; font-size: 10px; }
+    .action-badge.idle        { background: #1a2a1a; color: #77cc77; }
+    .action-badge.walking     { background: #1a2a30; color: #77bbee; }
+    .action-badge.interacting { background: #3a2a1a; color: #ddaa55; }
+
+    .stat-bar { height: 3px; background: #2a2a3a; border-radius: 2px; margin-top: 2px; overflow: hidden; }
+    .stat-fill { height: 100%; border-radius: 2px; transition: width 0.3s ease-out; }
+    .stat-fill.mood   { background: #cc77aa; }
+    .stat-fill.energy { background: #6a8aee; }
+
+    /* ── Event log ── */
+    #log-section { display: flex; flex-direction: column; }
+    #event-log {
+      background: #181828;
+      border: 1px solid #2a2a40;
+      border-radius: 6px;
+      padding: 8px;
+      flex: 1;
+      min-height: 400px;
+      overflow-y: auto;
+      font-size: 11px;
+    }
+    .log-entry {
+      padding: 3px 0;
+      border-bottom: 1px solid #1e1e32;
+      display: grid;
+      grid-template-columns: 60px 80px 1fr 44px;
+      gap: 6px;
+      align-items: baseline;
+    }
+    .log-entry:last-child { border-bottom: none; }
+    .log-time { color: #555; }
+    .log-obj  { color: #c8d4e8; }
+    .log-transition { }
+    .log-entry.auto        .log-transition { color: #77cc77; }
+    .log-entry.interaction .log-transition { color: #7799ee; }
+    .log-tag {
+      font-size: 10px;
+      padding: 1px 5px;
+      border-radius: 2px;
+      text-align: center;
+    }
+    .log-tag.auto { background: #1a2a1a; color: #77cc77; }
+    .log-tag.use  { background: #1a1a3a; color: #7799ee; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="header">
+      <h1>AI Aquarium — Debug Dashboard</h1>
+      <div id="clock">8:00 AM</div>
+    </div>
+
+    <div id="controls">
+      <button id="btn-pause">&#9646;&#9646; Pause</button>
+      <div class="ctrl-sep"></div>
+      <span class="ctrl-label">Speed:</span>
+      <button class="speed-btn active" data-speed="1">1x</button>
+      <button class="speed-btn" data-speed="2">2x</button>
+      <button class="speed-btn" data-speed="4">4x</button>
+      <div class="ctrl-sep"></div>
+      <button id="btn-reset">&#8635; Reset</button>
+    </div>
+
+    <div class="main-grid">
+      <div class="left-col">
+        <div>
+          <div class="section-title">Objects (10)</div>
+          <div id="objects-grid"></div>
+        </div>
+        <div>
+          <div class="section-title">Characters</div>
+          <div id="characters-grid"></div>
+        </div>
+      </div>
+      <div id="log-section">
+        <div class="section-title">Event Log</div>
+        <div id="event-log"><div style="color:#555;padding:4px 0">No events yet.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { ObjectEngine, OBJECT_DEFS } from './src/objects.js';
+    import { SimulationEngine } from './src/Engine.js';
+    import { Character } from './src/Character.js';
+
+    // ── Walkable grid (mirrors scene.js) ──────────────────────────────────────
+
+    const GRID_COLS = 19;
+    const GRID_ROWS = 13;
+
+    function buildWalkableGrid() {
+      const grid = [];
+      for (let row = 0; row < GRID_ROWS; row++) {
+        const r = [];
+        for (let col = 0; col < GRID_COLS; col++) {
+          r.push(col >= 1 && col <= 17 && row >= 2 && row <= 9);
+        }
+        grid.push(r);
+      }
+      return grid;
+    }
+
+    // ── Character definitions (mirrors scene.js) ─────────────────────────────
+
+    const CHARS_CONFIG = [
+      { name: 'Amelia', label: 'Maple', tx: 6,  ty: 7,
+        dialogue: ['Perfect brew today~', 'Want some tea?'] },
+      { name: 'Lucy',   label: 'Sol',   tx: 10, ty: 6,
+        dialogue: ['The bonsai looks healthy', 'Such peaceful light...'] },
+      { name: 'Ash',    label: 'Nyx',   tx: 14, ty: 5,
+        dialogue: ['I need more paint...', 'This light is perfect'] },
+    ];
+
+    // ── Engine setup ──────────────────────────────────────────────────────────
+
+    const walkable = buildWalkableGrid();
+    const simEngine = new SimulationEngine({ walkable, gridCols: GRID_COLS, gridRows: GRID_ROWS });
+
+    for (const cfg of CHARS_CONFIG) {
+      simEngine.addCharacter(new Character({
+        ...cfg, walkable, gridCols: GRID_COLS, gridRows: GRID_ROWS,
+      }));
+    }
+
+    // ── UI state ──────────────────────────────────────────────────────────────
+
+    let paused = false;
+    let speed  = 1;
+    let lastTs = null;
+
+    // Event log (newest-first)
+    const log = [];
+    const MAX_LOG = 150;
+    let logDirty = false;
+
+    // Track previous object states so we can log from→to
+    const prevStateMap = new Map();
+    for (const obj of simEngine.objectEngine.getAll()) {
+      prevStateMap.set(obj.id, obj.state);
+    }
+
+    // ── Controls ──────────────────────────────────────────────────────────────
+
+    const pauseBtn = document.getElementById('btn-pause');
+    pauseBtn.addEventListener('click', () => {
+      paused = !paused;
+      pauseBtn.innerHTML = paused ? '&#9654; Play' : '&#9646;&#9646; Pause';
+      pauseBtn.classList.toggle('active', paused);
+      if (!paused) lastTs = null; // avoid time-jump on resume
+    });
+
+    document.querySelectorAll('.speed-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        speed = parseFloat(btn.dataset.speed);
+        document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      });
+    });
+
+    document.getElementById('btn-reset').addEventListener('click', () => {
+      // Reset object states to defaults
+      for (const def of OBJECT_DEFS) {
+        const obj = simEngine.objectEngine.getById(def.id);
+        if (!obj) continue;
+        obj.state = def.state || 'idle';
+        obj._resetAutoTimer();
+        prevStateMap.set(def.id, obj.state);
+      }
+      // Reset sim clock
+      simEngine.simTimeMs = 8 * 60 * 60 * 1000;
+      // Clear log
+      log.length = 0;
+      logDirty = true;
+      // Update badge classes immediately
+      for (const obj of simEngine.objectEngine.getAll()) {
+        updateObjectCard(obj);
+      }
+    });
+
+    // ── Helper: state badge class ─────────────────────────────────────────────
+
+    const ACTIVE_STATES = new Set([
+      'cooking', 'brewing', 'painting', 'working', 'tending', 'reading', 'on',
+    ]);
+    const DONE_STATES = new Set(['done', 'ready', 'open', 'cozy', 'resting']);
+
+    function badgeClass(state) {
+      if (state === 'idle')         return 'idle';
+      if (DONE_STATES.has(state))   return 'done';
+      if (ACTIVE_STATES.has(state)) return 'active';
+      return 'other';
+    }
+
+    // ── Log helper ────────────────────────────────────────────────────────────
+
+    function pushLog(objectId, fromState, toState, trigger) {
+      log.unshift({ objectId, fromState, toState, trigger, time: simEngine.getSimTimeString() });
+      if (log.length > MAX_LOG) log.length = MAX_LOG;
+      logDirty = true;
+    }
+
+    // ── Manual interact (called from interaction buttons) ─────────────────────
+
+    window._dbInteract = function(objectId, action) {
+      const obj = simEngine.objectEngine.getById(objectId);
+      if (!obj) return;
+      const from = obj.state;
+      const ev = simEngine.objectEngine.interact(objectId, action);
+      if (ev) {
+        pushLog(objectId, from, ev.state, action);
+        prevStateMap.set(objectId, ev.state);
+        updateObjectCard(obj);
+      }
+    };
+
+    // ── Build DOM cards (once) ────────────────────────────────────────────────
+
+    function initObjectCards() {
+      const grid = document.getElementById('objects-grid');
+      for (const obj of simEngine.objectEngine.getAll()) {
+        const card = document.createElement('div');
+        card.className = 'object-card';
+        card.id = `obj-${obj.id}`;
+        card.innerHTML = `
+          <div class="object-card-header">
+            <span class="object-name">${obj.name}</span>
+            <span class="state-badge" id="badge-${obj.id}"></span>
+          </div>
+          <div class="position-hint">tile (${obj.tx}, ${obj.ty})</div>
+          <div class="timer-bar" id="timerbar-${obj.id}" style="display:none">
+            <div class="timer-fill" id="timerfill-${obj.id}" style="width:0%"></div>
+          </div>
+          <div class="timer-text" id="timertext-${obj.id}" style="display:none"></div>
+          <div class="interactions" id="int-${obj.id}"></div>
+        `;
+        grid.appendChild(card);
+        updateObjectCard(obj); // initial paint
+      }
+    }
+
+    function updateObjectCard(obj) {
+      const badge      = document.getElementById(`badge-${obj.id}`);
+      const timerBar   = document.getElementById(`timerbar-${obj.id}`);
+      const timerFill  = document.getElementById(`timerfill-${obj.id}`);
+      const timerText  = document.getElementById(`timertext-${obj.id}`);
+      const intDiv     = document.getElementById(`int-${obj.id}`);
+      if (!badge) return;
+
+      const prevState = badge.dataset.state;
+      const stateChanged = prevState !== obj.state;
+
+      if (stateChanged) {
+        badge.textContent = obj.state;
+        badge.className = `state-badge ${badgeClass(obj.state)}`;
+        badge.dataset.state = obj.state;
+
+        // Rebuild interaction buttons on state change
+        const stateDef = obj.states[obj.state];
+        const actions = Object.keys(stateDef?.transitions || {});
+        intDiv.innerHTML = actions.map(a =>
+          `<button onclick="window._dbInteract('${obj.id}','${a}')">${a}</button>`
+        ).join('');
+      }
+
+      // Timer bar (update every frame regardless of state change)
+      const stateDef = obj.states[obj.state];
+      const hasTimer = !!(stateDef?.auto_next && obj.autoTimer > 0);
+      if (hasTimer) {
+        const totalMs = stateDef.auto_next.after * 1000;
+        const pct = Math.max(0, Math.min(100, (1 - obj.autoTimer / totalMs) * 100));
+        timerBar.style.display = '';
+        timerFill.style.width  = `${pct.toFixed(1)}%`;
+        timerText.style.display = '';
+        timerText.textContent   = `${Math.ceil(obj.autoTimer / 1000)}s remaining`;
+      } else {
+        timerBar.style.display  = 'none';
+        timerText.style.display = 'none';
+      }
+    }
+
+    function initCharacterCards() {
+      const grid = document.getElementById('characters-grid');
+      simEngine.characters.forEach((char, i) => {
+        const card = document.createElement('div');
+        card.className = 'character-card';
+        card.id = `char-${i}`;
+        grid.appendChild(card);
+        updateCharacterCard(char, i); // initial paint
+      });
+    }
+
+    function updateCharacterCard(char, i) {
+      const card = document.getElementById(`char-${i}`);
+      if (!card) return;
+
+      const targetName = char.interactTarget
+        ? (simEngine.objectEngine.getById(char.interactTarget)?.name ?? char.interactTarget)
+        : char.targetObjectId
+          ? (simEngine.objectEngine.getById(char.targetObjectId)?.name ?? char.targetObjectId)
+          : '—';
+
+      card.innerHTML = `
+        <div class="character-name">${char.label}</div>
+        <div class="char-row">
+          <span>Action</span>
+          <span class="action-badge ${char.action}">${char.action}</span>
+        </div>
+        <div class="char-row">
+          <span>Position</span>
+          <span class="char-value">(${Math.round(char.tx)}, ${Math.round(char.ty)})</span>
+        </div>
+        <div class="char-row">
+          <span>Facing</span>
+          <span class="char-value">${char.facing}</span>
+        </div>
+        <div class="char-row">
+          <span>Target</span>
+          <span class="char-value">${targetName}</span>
+        </div>
+        <div class="char-row" style="margin-top:4px">
+          <span>Mood</span>
+          <span class="char-value">${char.mood}</span>
+        </div>
+        <div class="stat-bar">
+          <div class="stat-fill mood" style="width:${char.mood}%"></div>
+        </div>
+        <div class="char-row" style="margin-top:4px">
+          <span>Energy</span>
+          <span class="char-value">${char.energy}</span>
+        </div>
+        <div class="stat-bar">
+          <div class="stat-fill energy" style="width:${char.energy}%"></div>
+        </div>
+      `;
+    }
+
+    function renderEventLog() {
+      if (!logDirty) return;
+      logDirty = false;
+
+      const el = document.getElementById('event-log');
+      if (log.length === 0) {
+        el.innerHTML = '<div style="color:#555;padding:4px 0">No events yet.</div>';
+        return;
+      }
+      el.innerHTML = log.slice(0, 80).map(e => `
+        <div class="log-entry ${e.trigger === 'auto' ? 'auto' : 'interaction'}">
+          <span class="log-time">${e.time}</span>
+          <span class="log-obj">${e.objectId}</span>
+          <span class="log-transition">${e.fromState} &rarr; ${e.toState}</span>
+          <span class="log-tag ${e.trigger === 'auto' ? 'auto' : 'use'}">${e.trigger}</span>
+        </div>
+      `).join('');
+    }
+
+    // ── Tick loop ─────────────────────────────────────────────────────────────
+
+    function tick(ts) {
+      requestAnimationFrame(tick);
+
+      if (!paused && lastTs !== null) {
+        const realDelta = (ts - lastTs) * speed;
+
+        // Snapshot states before update
+        const snap = new Map();
+        for (const obj of simEngine.objectEngine.getAll()) snap.set(obj.id, obj.state);
+
+        // Advance simulation
+        simEngine.update(realDelta);
+
+        // Detect auto-transitions
+        for (const obj of simEngine.objectEngine.getAll()) {
+          if (snap.get(obj.id) !== obj.state) {
+            pushLog(obj.id, snap.get(obj.id), obj.state, 'auto');
+            prevStateMap.set(obj.id, obj.state);
+          }
+          updateObjectCard(obj);
+        }
+
+        // Update character cards
+        simEngine.characters.forEach((char, i) => updateCharacterCard(char, i));
+      }
+
+      lastTs = ts;
+
+      // Clock
+      document.getElementById('clock').textContent = simEngine.getSimTimeString();
+
+      // Event log (only when dirty)
+      renderEventLog();
+    }
+
+    // ── Init ──────────────────────────────────────────────────────────────────
+
+    initObjectCards();
+    initCharacterCards();
+    requestAnimationFrame(tick);
+  </script>
+</body>
+</html>

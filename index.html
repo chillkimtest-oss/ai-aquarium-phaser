@@ -8,12 +8,141 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body { width: 100%; height: 100%; background: #1a1a2e; overflow: hidden; }
     canvas { image-rendering: pixelated; image-rendering: crisp-edges; display: block; }
+
+    /* ── Debug toggle button ── */
+    #debug-toggle {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      z-index: 100;
+      padding: 4px 10px;
+      background: #222240;
+      color: #e0ddd4;
+      border: 1px solid #444;
+      border-radius: 3px;
+      cursor: pointer;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 11px;
+      opacity: 0.75;
+      transition: opacity 0.15s;
+    }
+    #debug-toggle:hover { opacity: 1; background: #2a2a5a; }
+    #debug-toggle.open  { opacity: 1; border-color: #6a9a8a; color: #9eebd4; background: #1e2e3e; }
+
+    /* ── Debug overlay panel ── */
+    #debug-panel {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 280px;
+      height: 100%;
+      background: #12121e;
+      border-left: 1px solid #2a2a44;
+      z-index: 99;
+      display: none;
+      flex-direction: column;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 12px;
+      color: #e0ddd4;
+      overflow: hidden;
+    }
+    #debug-panel.visible { display: flex; }
+
+    #debug-panel-header {
+      padding: 8px 12px;
+      background: #1a1a2e;
+      border-bottom: 1px solid #2a2a44;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+    #debug-panel-header span { color: #ffe8a3; font-size: 11px; letter-spacing: 0.05em; }
+    #debug-clock { color: #ffe8a3; font-size: 12px; }
+
+    #debug-panel-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+    }
+
+    /* scrollbar */
+    #debug-panel-body::-webkit-scrollbar { width: 4px; }
+    #debug-panel-body::-webkit-scrollbar-track { background: #111; }
+    #debug-panel-body::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+
+    .dp-obj {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 5px 6px;
+      border-radius: 3px;
+      margin-bottom: 3px;
+      background: #1a1a2e;
+      border: 1px solid #2a2a3e;
+      gap: 6px;
+    }
+    .dp-obj-name  { color: #c8d4e8; flex: 1; text-transform: capitalize; }
+    .dp-badge {
+      padding: 1px 7px;
+      border-radius: 2px;
+      font-size: 10px;
+      white-space: nowrap;
+    }
+    .dp-badge.idle   { background: #1a2a1a; color: #77cc77; }
+    .dp-badge.active { background: #2a2a1a; color: #cccc77; }
+    .dp-badge.done   { background: #1a1a2a; color: #88aacc; }
+    .dp-badge.other  { background: #2a1a2a; color: #cc88cc; }
+
+    .dp-timer {
+      height: 2px;
+      background: #2a2a40;
+      margin-top: 2px;
+      margin-bottom: 1px;
+      border-radius: 1px;
+      overflow: hidden;
+    }
+    .dp-timer-fill { height: 100%; background: #6a8a5a; border-radius: 1px; transition: width 0.1s ease-out; }
+
+    .dp-btn {
+      padding: 2px 8px;
+      font-size: 10px;
+      background: #2a3a5a;
+      color: #e0ddd4;
+      border: 1px solid #3a4a6a;
+      border-radius: 2px;
+      cursor: pointer;
+      font-family: inherit;
+      white-space: nowrap;
+    }
+    .dp-btn:hover { background: #3a4a7a; }
+
+    .dp-section-title {
+      font-size: 10px;
+      color: #555;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      padding: 6px 0 4px;
+    }
+
+    #debug-panel-footer {
+      padding: 6px 12px;
+      border-top: 1px solid #2a2a44;
+      flex-shrink: 0;
+      text-align: center;
+    }
+    #debug-panel-footer a {
+      color: #6a8aaa;
+      font-size: 11px;
+      text-decoration: none;
+    }
+    #debug-panel-footer a:hover { color: #9abacc; text-decoration: underline; }
   </style>
 </head>
 <body>
 <script src="https://cdn.jsdelivr.net/npm/phaser@3.88.2/dist/phaser.min.js"></script>
 <script type="module">
-import { CafeScene } from './src/scene.js?v=14';
+import { CafeScene } from './src/scene.js?v=15';
 new Phaser.Game({
   type: Phaser.AUTO,
   width: 912, height: 642,
@@ -22,6 +151,134 @@ new Phaser.Game({
   render: { antialias: false, pixelArt: true },
   scene: CafeScene,
 });
+</script>
+
+<!-- ── Debug toggle button ── -->
+<button id="debug-toggle">Debug</button>
+
+<!-- ── Debug overlay panel ── -->
+<div id="debug-panel">
+  <div id="debug-panel-header">
+    <span>OBJECT STATES</span>
+    <span id="debug-clock">—</span>
+  </div>
+  <div id="debug-panel-body">
+    <div id="dp-objects"></div>
+  </div>
+  <div id="debug-panel-footer">
+    <a href="debug.html" target="_blank">&#8599; Full dashboard</a>
+  </div>
+</div>
+
+<script>
+(function() {
+  const toggle  = document.getElementById('debug-toggle');
+  const panel   = document.getElementById('debug-panel');
+  const dpObjs  = document.getElementById('dp-objects');
+  const dpClock = document.getElementById('debug-clock');
+
+  let open = false;
+  let rafId = null;
+
+  const ACTIVE_STATES = new Set([
+    'cooking','brewing','painting','working','tending','reading','on',
+  ]);
+  const DONE_STATES = new Set(['done','ready','open','cozy','resting']);
+
+  function badgeCls(state) {
+    if (state === 'idle')          return 'idle';
+    if (DONE_STATES.has(state))    return 'done';
+    if (ACTIVE_STATES.has(state))  return 'active';
+    return 'other';
+  }
+
+  // Build DOM for each object row once, then update in place
+  let built = false;
+
+  function buildRows(objects) {
+    dpObjs.innerHTML = '';
+    for (const obj of objects) {
+      const row = document.createElement('div');
+      row.innerHTML = `
+        <div class="dp-obj" id="dpo-${obj.id}">
+          <span class="dp-obj-name">${obj.name}</span>
+          <span class="dp-badge" id="dpbadge-${obj.id}"></span>
+          <span id="dptimer-${obj.id}"></span>
+        </div>
+        <div class="dp-timer" id="dptbar-${obj.id}" style="display:none">
+          <div class="dp-timer-fill" id="dptfill-${obj.id}" style="width:0%"></div>
+        </div>
+      `;
+      dpObjs.appendChild(row);
+    }
+    built = true;
+  }
+
+  function updateRows(engine) {
+    const objects = engine.objectEngine.getAll();
+    if (!built) buildRows(objects);
+
+    dpClock.textContent = engine.getSimTimeString();
+
+    for (const obj of objects) {
+      const badge = document.getElementById(`dpbadge-${obj.id}`);
+      const tbar  = document.getElementById(`dptbar-${obj.id}`);
+      const tfill = document.getElementById(`dptfill-${obj.id}`);
+      const tspan = document.getElementById(`dptimer-${obj.id}`);
+      if (!badge) continue;
+
+      // Badge
+      if (badge.dataset.state !== obj.state) {
+        badge.textContent    = obj.state;
+        badge.className      = `dp-badge ${badgeCls(obj.state)}`;
+        badge.dataset.state  = obj.state;
+
+        // Rebuild use button
+        const existing = tspan.previousSibling;
+        // We rebuild via innerHTML of tspan for the button
+        const stateDef = obj.states[obj.state];
+        const actions  = Object.keys(stateDef?.transitions || {});
+        tspan.innerHTML = actions.map(a =>
+          `<button class="dp-btn" onclick="window._dpInteract('${obj.id}','${a}')">${a}</button>`
+        ).join('');
+      }
+
+      // Timer bar
+      const stateDef = obj.states[obj.state];
+      const hasTimer = !!(stateDef?.auto_next && obj.autoTimer > 0);
+      if (hasTimer) {
+        const totalMs = stateDef.auto_next.after * 1000;
+        const pct = Math.max(0, Math.min(100, (1 - obj.autoTimer / totalMs) * 100));
+        tbar.style.display  = '';
+        tfill.style.width   = `${pct.toFixed(1)}%`;
+      } else {
+        tbar.style.display = 'none';
+      }
+    }
+  }
+
+  window._dpInteract = function(id, action) {
+    if (!window._gameEngine) return;
+    window._gameEngine.objectEngine.interact(id, action);
+  };
+
+  function renderLoop() {
+    if (!open) { rafId = null; return; }
+    if (window._gameEngine) updateRows(window._gameEngine);
+    rafId = requestAnimationFrame(renderLoop);
+  }
+
+  toggle.addEventListener('click', () => {
+    open = !open;
+    toggle.classList.toggle('open', open);
+    toggle.textContent = open ? 'Debug ✕' : 'Debug';
+    panel.classList.toggle('visible', open);
+    if (open && !rafId) {
+      built = false; // rebuild rows on open in case engine wasn't ready before
+      rafId = requestAnimationFrame(renderLoop);
+    }
+  });
+})();
 </script>
 </body>
 </html>

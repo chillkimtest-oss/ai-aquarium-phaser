@@ -138,6 +138,9 @@ export class CafeScene extends Phaser.Scene {
       this.engine.addCharacter(char);
     });
 
+    // Expose engine for the debug overlay panel
+    window._gameEngine = this.engine;
+
     // Sim clock display (screen-fixed, top-left)
     this.clockText = this.add.text(8, 8, '', {
       fontSize: '13px',
