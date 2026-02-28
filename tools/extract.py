@@ -864,18 +864,25 @@ CATALOG = [
     ("floor_wood_dark.png",   "Floors_TILESET_A2_", {"type": "a2_fill", "block_col": 1, "block_row": 0}, make_floor_wood_dark),
     ("floor_tile.png",        "Floors_TILESET_A2_", {"type": "a2_fill", "block_col": 2, "block_row": 0}, make_floor_tile),
     ("floor_carpet.png",      "Floors_TILESET_A2_", {"type": "a2_fill", "block_col": 0, "block_row": 1}, make_floor_carpet),
-    ("floor_sidewalk.png",    None, None, make_floor_sidewalk),
-    ("ceiling.png",           None, None, make_ceiling),
+    # floor_sidewalk: exterior A5 sheet, row 10 (gray pavement block)
+    ("floor_sidewalk.png",    "Outside_A5_MV",      {"type": "a5", "col": 0, "row": 10}, make_floor_sidewalk),
+    # ceiling: use dark-wood wall-top from A4 (second wall style, col 1)
+    ("ceiling.png",           "Walls_TILESET_A4_",  {"type": "a4_top", "wall_col": 1, "wall_row": 0}, make_ceiling),
 
     # Walls
     ("wall_top.png",          "Walls_TILESET_A4_", {"type": "a4_top",  "wall_col": 0, "wall_row": 0}, make_wall_top),
     ("wall_face.png",         "Walls_TILESET_A4_", {"type": "a4_face", "wall_col": 0, "wall_row": 0}, make_wall_face),
-    ("wall_face_apt.png",     None, None, lambda: make_wall_face(apartment=True)),
-    ("wall_window.png",       None, None, lambda: make_wall_window(apartment=False)),
-    ("wall_window_apt.png",   None, None, lambda: make_wall_window(apartment=True)),
-    ("door.png",              "Serene_Village_48x48", {"type": "a5", "col": 8, "row": 23}, make_door),
-    ("stairs.png",            "Serene_Village_48x48", {"type": "a5", "col": 1, "row": 5}, make_stairs),
-    ("stairs_tile.png",       None, None, make_stairs_tile),
+    # wall_face_apt: apartment warm-wood wall variant (A4 col 1)
+    ("wall_face_apt.png",     "Walls_TILESET_A4_",  {"type": "a4_face", "wall_col": 1, "wall_row": 0}, lambda: make_wall_face(apartment=True)),
+    # wall_window / wall_window_apt: Generic_01 wall tiles with window opening
+    ("wall_window.png",       "Generic_01",          {"type": "be", "col": 0, "row": 8, "w": 1, "h": 1}, lambda: make_wall_window(apartment=False)),
+    ("wall_window_apt.png",   "Generic_01",          {"type": "be", "col": 1, "row": 8, "w": 1, "h": 1}, lambda: make_wall_window(apartment=True)),
+    # door: wooden door tile from Generic_01
+    ("door.png",              "Generic_01",          {"type": "be", "col": 8, "row": 0, "w": 1, "h": 1}, make_door),
+    # stairs: interior staircase from Generic_01
+    ("stairs.png",            "Generic_01",          {"type": "be", "col": 12, "row": 0, "w": 1, "h": 1}, make_stairs),
+    # stairs_tile: stair landing tile from Generic_01
+    ("stairs_tile.png",       "Generic_01",          {"type": "be", "col": 13, "row": 0, "w": 1, "h": 1}, make_stairs_tile),
 
     # Counter / kitchen furniture
     ("counter.png",           "Kitchen_01", {"type": "be", "col": 1, "row": 14, "w": 1, "h": 1}, make_counter),
@@ -916,9 +923,12 @@ CATALOG = [
     ("lamp_floor.png",        "Living_Room_01", {"type": "be", "col": 7, "row": 6, "w": 1, "h": 1}, make_lamp_floor),
     ("lamp_table.png",        "Living_Room_01", {"type": "be", "col": 7, "row": 8, "w": 1, "h": 1}, make_lamp_table),
     ("desk.png",              "Living_Room_01", {"type": "be", "col": 3, "row": 4, "w": 1, "h": 1}, make_desk),
-    ("coffee_table.png",      None, None, make_coffee_table),
-    ("rug.png",               None, None, make_rug),
-    ("nightstand.png",        None, None, make_nightstand),
+    # coffee_table: small living-room table from Living_Room_01
+    ("coffee_table.png",      "Living_Room_01",      {"type": "be", "col": 1, "row": 2, "w": 1, "h": 1}, make_coffee_table),
+    # rug: carpet/rug object from Living_Room_01
+    ("rug.png",               "Living_Room_01",      {"type": "be", "col": 0, "row": 10, "w": 2, "h": 1}, make_rug),
+    # nightstand: small bedside table from Bedroom_01_Revamped
+    ("nightstand.png",        "Bedroom_01_Revamped", {"type": "be", "col": 4, "row": 2, "w": 1, "h": 1}, make_nightstand),
 
     # Bedroom
     ("bed.png",               "Bedroom_01_Revamped", {"type": "be", "col": 0, "row": 9, "w": 2, "h": 2}, make_bed),
@@ -934,7 +944,8 @@ CATALOG = [
     ("paint_supplies.png",    "Art_01", {"type": "be", "col": 0, "row": 7, "w": 1, "h": 1}, make_paint_supplies),
 
     # Plants / misc
-    ("plant_small.png",       "Serene_Village_48x48", {"type": "a5", "col": 9, "row": 11}, make_plant_small),
+    # plant_small: small potted plant from Living_Room_01
+    ("plant_small.png",       "Living_Room_01",      {"type": "be", "col": 9, "row": 2, "w": 1, "h": 1}, make_plant_small),
     ("window_sky.png",        "Bedroom_01_Revamped", {"type": "be", "col": 0, "row": 5, "w": 1, "h": 1}, make_window_sky),
 ]
 
@@ -980,7 +991,7 @@ def main():
         img = extract_sprite(entry)
         img.save(out_path)
         w, h = img.size
-        mode = "extracted" if (entry[1] and _find_sheet(entry[1])) else "placeholder"
+        mode = "extracted" if (entry[1] and _find_sheet(entry[1])) else "drawn"
         print(f"  {filename:40s} {w}x{h} [{mode}]")
 
     print(f"\nDone. {len(CATALOG)} sprites written to {OUT_DIR}")
