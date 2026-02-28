@@ -228,20 +228,16 @@ class Layer:
 def build_floor_layer() -> Layer:
     L = Layer("floor")
 
-    # ── Upper apartment floors ──
-    L.fill(0,  2, 13, 11, 'floor_wood_dark')   # bedroom + art + kitchen
-    L.fill(14, 2, 19,  3, 'floor_wood_dark')   # living room (before carpet)
-    L.fill(14, 4, 19, 11, 'floor_carpet')       # living room carpet
+    # ── Upper apartment floors — ONE tile for the whole apartment ──
+    # (no zone-to-zone transitions = no autotile seams)
+    L.fill(0, 2, 19, 11, 'floor_wood_dark')
 
-    # ── Ceiling slab ──
+    # ── Ceiling slab — solid dark tile repeated, NOT an autotile ──
     L.fill(0, 12, 19, 13, 'ceiling')
 
-    # ── Ground café floors ──
-    L.fill(0,  16,  7, 25, 'floor_wood_dark')  # counter/staff zone
-    L.fill(8,  16, 19, 25, 'floor_wood')        # seating zone
-    # Carpet overlays (overwrite floor tiles)
-    L.fill(9,  18, 12, 21, 'floor_carpet')      # rug under main table cluster
-    L.fill(0,  22,  3, 24, 'floor_carpet')      # reading nook carpet
+    # ── Ground café floors — ONE warm-wood tile for the entire café ──
+    # Counter and seating share the same floor; furniture acts as visual boundary.
+    L.fill(0, 16, 19, 25, 'floor_wood')
 
     # ── Entrance strip ──
     L.fill(0, 26, 19, 27, 'floor_sidewalk')
@@ -252,16 +248,18 @@ def build_floor_layer() -> Layer:
 def build_walls_layer() -> Layer:
     L = Layer("walls")
 
-    # ── Apartment back wall ──
-    L.fill_row(0, 'wall_top')
+    # ── Apartment back wall — both rows use the same solid wall tile ──
+    # Using wall_face_apt for row 0 instead of wall_top eliminates the
+    # seam caused by two different autotile center-fills touching.
+    L.fill_row(0, 'wall_face_apt')
     for c in range(MAP_W):
         if c in range(2, 5) or c in range(10, 13):
             L.set(c, 1, 'wall_window_apt')
         else:
             L.set(c, 1, 'wall_face_apt')
 
-    # ── Café back wall ──
-    L.fill_row(14, 'wall_top')
+    # ── Café back wall — same approach ──
+    L.fill_row(14, 'wall_face')
     for c in range(MAP_W):
         if c in range(9, 12) or c in range(15, 18):
             L.set(c, 15, 'wall_window')

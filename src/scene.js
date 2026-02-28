@@ -52,8 +52,12 @@ export class CafeScene extends Phaser.Scene {
     // Floor labels
     this._addLabels();
 
-    // Fit camera to the full map
-    this.cameras.main.setBounds(0, 0, MAP_W * TILE, MAP_H * TILE);
+    // Show the full map: restrict scrolling to map bounds and reset to origin.
+    // Phaser.Scale.FIT (set in index.html) handles canvas ↔ viewport scaling.
+    const cam = this.cameras.main;
+    cam.setBounds(0, 0, MAP_W * TILE, MAP_H * TILE);
+    cam.setScroll(0, 0);   // ensure top-left corner is always visible
+    cam.setZoom(1);        // 1:1 with world pixels; Scale.FIT shrinks the canvas
   }
 
   // ── Labels ─────────────────────────────────────────────────────────────────
