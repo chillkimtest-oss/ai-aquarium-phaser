@@ -56,7 +56,7 @@ export class CafeScene extends Phaser.Scene {
     // Phaser.Scale.FIT (set in index.html) handles canvas ↔ viewport scaling.
     const cam = this.cameras.main;
     cam.setBounds(0, 0, MAP_W * TILE, MAP_H * TILE);
-    cam.setScroll(0, 0);   // ensure top-left corner is always visible
+    cam.centerOn((MAP_W * TILE) / 2, (MAP_H * TILE) / 2);
     cam.setZoom(1);        // 1:1 with world pixels; Scale.FIT shrinks the canvas
   }
 
