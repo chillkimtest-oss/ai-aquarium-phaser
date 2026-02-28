@@ -143,6 +143,10 @@ export class Character {
     this.walkable  = config.walkable;
     this.gridCols  = config.gridCols;
     this.gridRows  = config.gridRows;
+
+    // Object interaction targeting — set by engine, cleared on arrival
+    this.targetObjectId = null;
+    this.pendingAction  = null;
   }
 
   // ── Computed pixel position (Phaser setOrigin(0.5, 1) — feet at py) ─────────
@@ -183,6 +187,11 @@ export class Character {
       return true;
     }
     return false;
+  }
+
+  /** Convenience wrapper — start interaction with a named object. */
+  startInteraction(objectId, durationMs) {
+    this.startInteract(objectId, durationMs);
   }
 
   startInteract(target, durationMs) {

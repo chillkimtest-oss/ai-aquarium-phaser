@@ -1,7 +1,9 @@
 /**
- * Engine.js — SimulationEngine: manages characters, objects, sim clock, and
- * default random-wander behaviour when AI is not connected.
+ * Engine.js — SimulationEngine: manages characters, object state machines, and
+ * default random-wander behaviour (with 30% chance of object interaction).
  */
+
+import { ObjectEngine, OBJECT_DEFS } from './objects.js';
 
 export class SimulationEngine {
   /**
@@ -18,7 +20,13 @@ export class SimulationEngine {
     this.aiEngine  = config.aiEngine  || null;
 
     this.characters = [];
-    this.objects    = [];
+
+    // Object state machine engine — pre-loaded with Japanese Home objects
+    this.objectEngine = new ObjectEngine();
+    this.objectEngine.addObjects(OBJECT_DEFS);
+
+    // Events queued for scene to consume (emoji floats, etc.)
+    this.pendingEvents = [];
 
     // Sim clock — starts at 08:00 AM game-time
     this.simTimeMs = 8 * 60 * 60 * 1000;
@@ -33,25 +41,32 @@ export class SimulationEngine {
     this.characters.push(char);
   }
 
-  addObject(obj) {
-    this.objects.push(obj);
-  }
-
   // ── Main update loop ─────────────────────────────────────────────────────────
 
   update(deltaMs) {
     // Advance sim clock
     this.simTimeMs += deltaMs * this.simSpeed;
 
-    // Optional AI decisions
+    // Optional AI decisions — pass live object list so AI sees current states
     if (this.aiEngine) {
-      this.aiEngine.update(deltaMs, this.characters, this.objects, {
+      this.aiEngine.update(deltaMs, this.characters, this.objectEngine.getAll(), {
         timeString: this.getSimTimeString(),
       });
     }
 
+    // Tick object state machines; collect auto-transition events
+    const objEvents = this.objectEngine.tick(deltaMs);
+    for (const ev of objEvents) {
+      if (ev.emoji) this.pendingEvents.push(ev);
+    }
+
     for (const char of this.characters) {
-      // Trigger random wander when idle and timer expired
+      // Handle arrival: character reached target object tile
+      if (char.action === 'idle' && char.targetObjectId) {
+        this._handleObjectArrival(char);
+      }
+
+      // Trigger random wander (or object visit) when idle and timer expired
       if (char.action === 'idle' && char.wanderTimer <= 0) {
         this._doWander(char);
       }
@@ -69,22 +84,56 @@ export class SimulationEngine {
       // Per-character update (movement, animations, sprite sync)
       char.update(deltaMs);
     }
+  }
 
-    // Tick object states (placeholder — objects don't animate yet)
-    for (const obj of this.objects) {
-      if (obj.busyTimer > 0) {
-        obj.busyTimer -= deltaMs;
-        if (obj.busyTimer <= 0) {
-          obj.state     = 'idle';
-          obj.busyTimer = 0;
-        }
+  // ── Object interaction ────────────────────────────────────────────────────────
+
+  /**
+   * Called when a character arrives at an object's adjacent tile.
+   * Fires the 'use' transition and puts the character into 'interacting' state.
+   */
+  _handleObjectArrival(char) {
+    const event = this.objectEngine.interact(char.targetObjectId, char.pendingAction || 'use');
+
+    if (event) {
+      const obj = this.objectEngine.getById(char.targetObjectId);
+      char.startInteraction(char.targetObjectId, obj ? obj.interactMs : 8000);
+
+      if (event.speech) {
+        char.pendingSpeech = event.speech;
+      }
+
+      if (event.emoji) {
+        this.pendingEvents.push(event);
       }
     }
+    // Always clear targeting so we don't re-fire on next idle frame
+    char.targetObjectId = null;
+    char.pendingAction  = null;
   }
 
   // ── Wander ───────────────────────────────────────────────────────────────────
 
   _doWander(char) {
+    // 30% chance: walk to a random interactive object instead of wandering freely
+    if (Math.random() < 0.3) {
+      const objects = this.objectEngine.getAll();
+      if (objects.length > 0) {
+        // Shuffle and try each until one yields a reachable adjacent tile
+        const shuffled = objects.slice().sort(() => Math.random() - 0.5);
+        for (const obj of shuffled) {
+          const tile = this._findAdjacentWalkable(obj.tx, obj.ty);
+          if (tile && char.moveTo(tile.tx, tile.ty)) {
+            char.targetObjectId = obj.id;
+            char.pendingAction  = 'use';
+            return;
+          }
+        }
+        // All objects unreachable — fall through to random wander
+      }
+    }
+
+    // Random walkable tile
     const tiles = this._getWalkableTiles();
     if (tiles.length === 0) {
       char.wanderTimer = 2000;
@@ -103,9 +152,26 @@ export class SimulationEngine {
     }
 
     if (!moved) {
-      // Couldn't path anywhere — wait a bit before retrying
       char.wanderTimer = 2000;
     }
+  }
+
+  /**
+   * Return the first walkable tile cardinally adjacent to (tx, ty), or null.
+   */
+  _findAdjacentWalkable(tx, ty) {
+    const dirs = [
+      { tx, ty: ty - 1 },
+      { tx, ty: ty + 1 },
+      { tx: tx - 1, ty },
+      { tx: tx + 1, ty },
+    ];
+    for (const d of dirs) {
+      if (d.tx >= 0 && d.tx < this.gridCols && d.ty >= 0 && d.ty < this.gridRows) {
+        if (this.walkable[d.ty]?.[d.tx]) return d;
+      }
+    }
+    return null;
   }
 
   _getWalkableTiles() {

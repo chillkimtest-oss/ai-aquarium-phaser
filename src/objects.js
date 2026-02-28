@@ -1,116 +1,311 @@
 /**
- * objects.js — interactive object definitions for the Japanese Home scene.
+ * objects.js — interactive object state machines for the Japanese Home scene.
  *
- * Tile positions are approximate; Kim will refine after Tiled walkable-map pass.
- * All objects start in 'idle' state.
+ * Each object definition has:
+ *   { id, name, position: { tx, ty }, interactMs, state, states }
  *
- * Object shape:
- *   { id, label, tx, ty, state, interactable, interactDurationMs, busyTimer }
+ * Each state can have:
+ *   transitions: { use: { next: 'stateName' } }   — triggered by interact()
+ *   auto_next:   { state: 'stateName', after: N }  — fires automatically after N seconds
+ *   speech:      'string'                           — shown as character speech bubble
+ *   emoji:       '🍳'                               — floating emoji on transition
  */
 
-export const OBJECTS = [
-  // ── Café floor (rows 4–11 approx) ─────────────────────────────────────────
+// ── Object definitions ────────────────────────────────────────────────────────
+// Japanese Home (912×642, 19×13 tiles, 48px each).
+// Walkable interior: cols 1–17, rows 2–9.
 
-  {
-    id: 'espresso_machine',
-    label: 'Espresso Machine',
-    tx: 2, ty: 9,
-    state: 'idle',
-    interactable: true,
-    interactDurationMs: 5000,
-    busyTimer: 0,
-  },
-  {
-    id: 'coffee_maker',
-    label: 'Coffee Maker',
-    tx: 3, ty: 9,
-    state: 'idle',
-    interactable: true,
-    interactDurationMs: 4000,
-    busyTimer: 0,
-  },
-  {
-    id: 'display_case',
-    label: 'Display Case',
-    tx: 5, ty: 9,
-    state: 'idle',
-    interactable: true,
-    interactDurationMs: 2000,
-    busyTimer: 0,
-  },
-  {
-    id: 'bookshelf_cafe',
-    label: 'Bookshelf',
-    tx: 16, ty: 9,
-    state: 'idle',
-    interactable: true,
-    interactDurationMs: 10000,
-    busyTimer: 0,
-  },
-  {
-    id: 'window_seat',
-    label: 'Window Seat',
-    tx: 14, ty: 11,
-    state: 'idle',
-    interactable: true,
-    interactDurationMs: 8000,
-    busyTimer: 0,
-  },
-  {
-    id: 'cafe_table_1',
-    label: 'Café Table (left)',
-    tx: 8, ty: 10,
-    state: 'idle',
-    interactable: true,
-    interactDurationMs: 6000,
-    busyTimer: 0,
-  },
-  {
-    id: 'cafe_table_2',
-    label: 'Café Table (right)',
-    tx: 12, ty: 10,
-    state: 'idle',
-    interactable: true,
-    interactDurationMs: 6000,
-    busyTimer: 0,
-  },
-
-  // ── Apartment floor (rows 4–8 approx) ────────────────────────────────────
-
-  {
-    id: 'easel',
-    label: 'Easel',
-    tx: 2, ty: 5,
-    state: 'idle',
-    interactable: true,
-    interactDurationMs: 15000,
-    busyTimer: 0,
-  },
-  {
-    id: 'bookshelf_apt',
-    label: 'Bookshelf (apt)',
-    tx: 16, ty: 5,
-    state: 'idle',
-    interactable: true,
-    interactDurationMs: 10000,
-    busyTimer: 0,
-  },
+export const OBJECT_DEFS = [
   {
     id: 'stove',
-    label: 'Stove',
-    tx: 14, ty: 5,
+    name: 'stove',
+    position: { tx: 3, ty: 3 },
+    interactMs: 8000,
     state: 'idle',
-    interactable: true,
-    interactDurationMs: 8000,
-    busyTimer: 0,
+    states: {
+      idle: {
+        transitions: { use: { next: 'cooking' } },
+      },
+      cooking: {
+        speech: 'Let me cook something...',
+        auto_next: { state: 'done', after: 30 },
+      },
+      done: {
+        emoji: '🍳',
+        speech: "Dinner's ready! 🍳",
+        auto_next: { state: 'idle', after: 60 },
+        transitions: { use: { next: 'idle' } },
+      },
+    },
+  },
+  {
+    id: 'fridge',
+    name: 'fridge',
+    position: { tx: 2, ty: 3 },
+    interactMs: 5000,
+    state: 'idle',
+    states: {
+      idle: {
+        transitions: { use: { next: 'open' } },
+      },
+      open: {
+        speech: 'Hmm, what to eat...',
+        auto_next: { state: 'idle', after: 10 },
+        transitions: { use: { next: 'idle' } },
+      },
+    },
+  },
+  {
+    id: 'tea_set',
+    name: 'tea set',
+    position: { tx: 5, ty: 5 },
+    interactMs: 6000,
+    state: 'idle',
+    states: {
+      idle: {
+        transitions: { use: { next: 'brewing' } },
+      },
+      brewing: {
+        speech: 'Brewing some tea~',
+        auto_next: { state: 'ready', after: 15 },
+      },
+      ready: {
+        emoji: '🍵',
+        speech: 'Tea is ready~',
+        auto_next: { state: 'idle', after: 45 },
+        transitions: { use: { next: 'idle' } },
+      },
+    },
+  },
+  {
+    id: 'kotatsu',
+    name: 'kotatsu',
+    position: { tx: 6, ty: 6 },
+    interactMs: 12000,
+    state: 'idle',
+    states: {
+      idle: {
+        transitions: { use: { next: 'cozy' } },
+      },
+      cozy: {
+        speech: 'So warm and cozy under here...',
+        auto_next: { state: 'idle', after: 60 },
+        transitions: { use: { next: 'idle' } },
+      },
+    },
+  },
+  {
+    id: 'tv',
+    name: 'TV',
+    position: { tx: 9, ty: 3 },
+    interactMs: 10000,
+    state: 'idle',
+    states: {
+      idle: {
+        transitions: { use: { next: 'on' } },
+      },
+      on: {
+        speech: 'This show is interesting...',
+        auto_next: { state: 'idle', after: 45 },
+        transitions: { use: { next: 'idle' } },
+      },
+    },
+  },
+  {
+    id: 'bookshelf',
+    name: 'bookshelf',
+    position: { tx: 15, ty: 3 },
+    interactMs: 10000,
+    state: 'idle',
+    states: {
+      idle: {
+        transitions: { use: { next: 'reading' } },
+      },
+      reading: {
+        speech: 'This is a good chapter...',
+        auto_next: { state: 'idle', after: 40 },
+        transitions: { use: { next: 'idle' } },
+      },
+    },
+  },
+  {
+    id: 'desk',
+    name: 'desk',
+    position: { tx: 14, ty: 5 },
+    interactMs: 8000,
+    state: 'idle',
+    states: {
+      idle: {
+        transitions: { use: { next: 'working' } },
+      },
+      working: {
+        speech: 'Time to get some work done.',
+        auto_next: { state: 'idle', after: 35 },
+        transitions: { use: { next: 'idle' } },
+      },
+    },
   },
   {
     id: 'bed',
-    label: 'Bed',
-    tx: 5, ty: 5,
+    name: 'bed',
+    position: { tx: 16, ty: 5 },
+    interactMs: 15000,
     state: 'idle',
-    interactable: true,
-    interactDurationMs: 20000,
-    busyTimer: 0,
+    states: {
+      idle: {
+        transitions: { use: { next: 'resting' } },
+      },
+      resting: {
+        emoji: '💤',
+        speech: 'Just a little nap...',
+        auto_next: { state: 'idle', after: 60 },
+        transitions: { use: { next: 'idle' } },
+      },
+    },
+  },
+  {
+    id: 'easel',
+    name: 'easel',
+    position: { tx: 2, ty: 7 },
+    interactMs: 12000,
+    state: 'idle',
+    states: {
+      idle: {
+        transitions: { use: { next: 'painting' } },
+      },
+      painting: {
+        speech: 'This light is perfect for painting~',
+        auto_next: { state: 'done', after: 45 },
+      },
+      done: {
+        emoji: '🎨',
+        speech: 'My masterpiece is complete!',
+        auto_next: { state: 'idle', after: 30 },
+        transitions: { use: { next: 'idle' } },
+      },
+    },
+  },
+  {
+    id: 'bonsai',
+    name: 'bonsai',
+    position: { tx: 11, ty: 8 },
+    interactMs: 5000,
+    state: 'idle',
+    states: {
+      idle: {
+        transitions: { use: { next: 'tending' } },
+      },
+      tending: {
+        speech: 'The bonsai looks healthy today.',
+        auto_next: { state: 'idle', after: 12 },
+      },
+    },
   },
 ];
+
+// ── ObjectInstance ────────────────────────────────────────────────────────────
+
+class ObjectInstance {
+  constructor(def) {
+    this.id        = def.id;
+    this.name      = def.name;
+    this.label     = def.name;           // compat for AIEngine
+    this.position  = def.position;
+    this.tx        = def.position.tx;    // compat for AIEngine distance checks
+    this.ty        = def.position.ty;
+    this.states    = def.states;
+    this.state     = def.state || 'idle';
+    this.interactMs = def.interactMs || 8000;
+    this.autoTimer = 0;
+    this._resetAutoTimer();
+  }
+
+  _resetAutoTimer() {
+    const s = this.states[this.state];
+    this.autoTimer = s?.auto_next ? s.auto_next.after * 1000 : 0;
+  }
+
+  /**
+   * Trigger an interaction action (e.g. 'use').
+   * @returns {{ objectId, state, speech, emoji }|null}
+   */
+  interact(action = 'use') {
+    const s  = this.states[this.state];
+    const tr = s?.transitions?.[action];
+    if (!tr) return null;
+
+    this.state = tr.next;
+    this._resetAutoTimer();
+
+    const ns = this.states[this.state];
+    return {
+      objectId: this.id,
+      state:    this.state,
+      speech:   ns?.speech || null,
+      emoji:    ns?.emoji  || null,
+    };
+  }
+
+  /**
+   * Advance auto_next timers.
+   * @returns {{ objectId, state, emoji, auto: true }|null}
+   */
+  tick(deltaMs) {
+    if (this.autoTimer <= 0) return null;
+
+    this.autoTimer -= deltaMs;
+    if (this.autoTimer > 0) return null;
+
+    const s = this.states[this.state];
+    if (!s?.auto_next) return null;
+
+    this.state = s.auto_next.state;
+    this._resetAutoTimer();
+
+    const ns = this.states[this.state];
+    return {
+      objectId: this.id,
+      state:    this.state,
+      emoji:    ns?.emoji || null,
+      auto:     true,
+    };
+  }
+}
+
+// ── ObjectEngine ──────────────────────────────────────────────────────────────
+
+export class ObjectEngine {
+  constructor() {
+    this._map = new Map(); // id → ObjectInstance
+  }
+
+  addObjects(defs) {
+    for (const def of defs) {
+      this._map.set(def.id, new ObjectInstance(def));
+    }
+  }
+
+  /**
+   * Tick all object timers. Returns any events that fired this frame.
+   * @returns {Array<{ objectId, state, emoji, auto }>}
+   */
+  tick(deltaMs) {
+    const events = [];
+    for (const obj of this._map.values()) {
+      const ev = obj.tick(deltaMs);
+      if (ev) events.push(ev);
+    }
+    return events;
+  }
+
+  /**
+   * Trigger an action on an object (e.g. 'use').
+   * @returns {{ objectId, state, speech, emoji }|null}
+   */
+  interact(objectId, action = 'use') {
+    return this._map.get(objectId)?.interact(action) ?? null;
+  }
+
+  getAll()   { return Array.from(this._map.values()); }
+  getById(id) { return this._map.get(id) ?? null; }
+}

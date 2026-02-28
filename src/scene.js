@@ -1,7 +1,6 @@
 import { Character }         from './Character.js';
 import { SimulationEngine } from './Engine.js';
 import { AIEngine }          from './AIEngine.js';
-import { OBJECTS }           from './objects.js';
 import { showSpeech }        from './speechBubble.js';
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
@@ -112,8 +111,6 @@ export class CafeScene extends Phaser.Scene {
       // aiEngine: new AIEngine({ endpoint: 'https://...', apiKey: '...' }),
     });
 
-    OBJECTS.forEach(obj => this.engine.addObject(obj));
-
     // Characters
     CHARS.forEach(({ name, label, tx, ty, dialogue }) => {
       const initPx = tx * TILE_SIZE + TILE_SIZE / 2;
@@ -163,6 +160,26 @@ export class CafeScene extends Phaser.Scene {
         showSpeech(this, char.sprite, char.pendingSpeech);
         char.pendingSpeech = null;
       }
+    }
+
+    // Float emoji above objects that completed a transition
+    if (this.engine.pendingEvents.length > 0) {
+      for (const ev of this.engine.pendingEvents) {
+        if (!ev.emoji) continue;
+        const obj = this.engine.objectEngine.getById(ev.objectId);
+        if (!obj) continue;
+        const px = obj.tx * TILE_SIZE + TILE_SIZE / 2;
+        const py = obj.ty * TILE_SIZE;
+        const label = this.add.text(px, py, ev.emoji, { fontSize: '24px' }).setDepth(25);
+        this.tweens.add({
+          targets: label,
+          y:       label.y - 40,
+          alpha:   0,
+          duration: 2000,
+          onComplete: () => label.destroy(),
+        });
+      }
+      this.engine.pendingEvents = [];
     }
   }
 }
