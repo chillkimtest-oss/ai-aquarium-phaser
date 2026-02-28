@@ -25,10 +25,10 @@ H = TOTAL_ROWS * TILE  # 864
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SPRITES = os.path.join(BASE, "assets/sprites")
-TILESETS = os.path.join(BASE, "assets/tilesets/source")
+RB = os.path.join(BASE, "assets/research/limzu/purchased/Modern_Interiors_Full/1_Interiors/48x48/Room_Builder_subfiles_48x48")
 
-floors_sheet = Image.open(os.path.join(TILESETS, "Floors_TILESET_A2_.png"))
-walls_sheet  = Image.open(os.path.join(TILESETS, "Walls_TILESET_A4_.png"))
+floors_sheet = Image.open(os.path.join(RB, "Room_Builder_Floors_48x48.png"))
+walls_sheet  = Image.open(os.path.join(RB, "Room_Builder_Walls_48x48.png"))
 
 canvas = Image.new("RGBA", (W, H), (26, 26, 46, 255))
 
@@ -61,11 +61,11 @@ def place_sprite(name, px, py, subdir=None):
 # ── BACKGROUND ────────────────────────────────────────────────────────────────
 
 # Apartment floor: medium-brown wood planks (Floors col 14, row 0)
-apt_floor = tile(floors_sheet, 14, 0)
+apt_floor = tile(floors_sheet, 0, 34)  # herringbone wood
 fill_rect(apt_floor, 0, 0, COLS, APT_ROWS)
 
 # Apartment walls: cream/warm-white (Walls col 0, row 3)
-apt_wall = tile(walls_sheet, 0, 3)
+apt_wall = tile(walls_sheet, 0, 19)  # cream
 fill_rect(apt_wall, 0, 0, COLS, 2)
 
 # Ceiling slab
@@ -74,11 +74,11 @@ fill_rect(slab, 0, APT_ROWS, COLS, APT_ROWS + 1)
 
 # Café floor: warm golden planks (Floors col 8, row 9)
 cafe_start = APT_ROWS + SLAB_ROWS   # row 9  →  y = 432
-cafe_floor = tile(floors_sheet, 8, 9)
+cafe_floor = tile(floors_sheet, 0, 12)  # golden honey wood
 fill_rect(cafe_floor, 0, cafe_start, COLS, cafe_start + CAFE_ROWS)
 
 # Café walls: teal (Walls col 12, row 13)
-cafe_wall = tile(walls_sheet, 12, 13)
+cafe_wall = tile(walls_sheet, 22, 13)  # deep teal
 fill_rect(cafe_wall, 0, cafe_start, COLS, cafe_start + 2)
 
 
