@@ -6,36 +6,20 @@
   <title>AI Aquarium — Lofi Café</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body {
-      width: 100%; height: 100%;
-      background: #1a1a2e;
-      overflow: hidden;
-    }
-    canvas {
-      image-rendering: pixelated;
-      image-rendering: crisp-edges;
-      display: block;
-    }
+    html, body { width: 100%; height: 100%; background: #1a1a2e; overflow: hidden; }
+    canvas { image-rendering: pixelated; image-rendering: crisp-edges; display: block; }
   </style>
 </head>
 <body>
 <script src="https://cdn.jsdelivr.net/npm/phaser@3.88.2/dist/phaser.min.js"></script>
 <script type="module">
-import { CafeScene } from './src/scene.js?v=1772306261';
-
-const game = new Phaser.Game({
+import { CafeScene } from './src/scene.js?v=6';
+new Phaser.Game({
   type: Phaser.AUTO,
-  width:  672,
-  height: 1170,
+  width: 576, height: 864,
   backgroundColor: '#1a1a2e',
-  scale: {
-    mode:       Phaser.Scale.FIT,
-    autoCenter: Phaser.Scale.CENTER_BOTH,
-  },
-  render: {
-    antialias: false,
-    pixelArt:  true,
-  },
+  scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
+  render: { antialias: false, pixelArt: true },
   scene: CafeScene,
 });
 </script>
