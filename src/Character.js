@@ -277,6 +277,7 @@ export class Character {
     if (this.sprite.anims.currentAnim?.key !== key) {
       this.sprite.play(key, true);
     }
+    this.sprite.flipX = (type === 'walk' && this.facing === 'left');
   }
 
   _playWalkAnim() {

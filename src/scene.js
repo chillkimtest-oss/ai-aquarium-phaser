@@ -10,15 +10,16 @@ const GRID_COLS  = 19;
 const GRID_ROWS  = 13;
 
 // Walk spritesheet layout (2304×864, 48 cols × 9 rows, frame size 48×96)
-// Standard RPG Maker row order as observed in existing code comments:
-//   Row 0 = walk-up,   Row 1 = walk-left,
-//   Row 2 = walk-down, Row 3 = walk-right
-// Each row has 48 frames; we use the first 8 for a clean 8-frame cycle.
+// Frame number = row * 48 + col.  Verified by visual inspection:
+//   Row 0 → up   (4 frames:  0–3)
+//   Row 3 → right (6 frames: 144–149)
+//   Row 6 → down  (6 frames: 288–293)
+// LEFT reuses the RIGHT frames with flipX applied at runtime.
 const WALK_DIRS = [
-  { key: 'up',    start:   0 },
-  { key: 'left',  start:  48 },
-  { key: 'down',  start:  96 },
-  { key: 'right', start: 144 },
+  { key: 'up',    start:   0, end:   3 },
+  { key: 'down',  start: 288, end: 293 },
+  { key: 'right', start: 144, end: 149 },
+  { key: 'left',  start: 144, end: 149 }, // mirrored via flipX
 ];
 
 // Character definitions — tile positions within walkable area (col 1–17, row 4–11)
@@ -81,10 +82,10 @@ export class CafeScene extends Phaser.Scene {
         repeat: -1,
       });
 
-      WALK_DIRS.forEach(({ key, start }) => {
+      WALK_DIRS.forEach(({ key, start, end }) => {
         this.anims.create({
           key: `${name}_walk_${key}`,
-          frames: this.anims.generateFrameNumbers(`${name}_walk`, { start, end: start + 7 }),
+          frames: this.anims.generateFrameNumbers(`${name}_walk`, { start, end }),
           frameRate: 8,
           repeat: -1,
         });
