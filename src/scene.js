@@ -63,7 +63,7 @@ export class CafeScene extends Phaser.Scene {
     // Block(0,1)=(1,4) Block(1,1)=(3,4) Block(2,1)=(5,4) Block(3,1)=(7,4)
     
     this.fill('a2', 3, 4, 0, 2, MAP_COLS-1, 9);     // apt floor
-    this.fill('gen', 1, 1, 0, 10, MAP_COLS-1, 11);   // ceiling slab  
+    this.fill('gen', 0, 7, 0, 10, MAP_COLS-1, 11);   // ceiling slab  
     this.fill('a2', 1, 1, 0, 12, MAP_COLS-1, 13);    // café wall bg
     this.fill('a2', 1, 1, 0, 14, MAP_COLS-1, 21);    // café floor
     this.fill('a2', 7, 1, 0, 22, MAP_COLS-1, 23);    // sidewalk
@@ -117,25 +117,25 @@ export class CafeScene extends Phaser.Scene {
     this.p('k2', 4, 2, 5, 15);
 
     // Table cluster 1 — Generic_01 large table
-    this.p2('gen', 8, 4, 9, 17);
-    this.p('gen', 0, 6, 8, 17);
-    this.p('gen', 2, 6, 12, 17);
-    this.p('gen', 1, 5, 9, 16);
-    this.p('gen', 1, 5, 10, 16);
-    this.p('gen', 1, 7, 9, 19);
-    this.p('gen', 1, 7, 10, 19);
+    this.p2('gen', 4, 4, 9, 17);
+    this.p('gen', 11, 1, 8, 17);
+    this.p('gen', 13, 1, 12, 17);
+    this.p('gen', 7, 1, 9, 16);
+    this.p('gen', 7, 1, 10, 16);
+    this.p('gen', 9, 1, 9, 19);
+    this.p('gen', 9, 1, 10, 19);
 
     // Table cluster 2
-    this.p('gen', 4, 4, 15, 18);
-    this.p('gen', 1, 5, 15, 17);
-    this.p('gen', 1, 7, 15, 19);
-    this.p('gen', 0, 6, 14, 18);
-    this.p('gen', 2, 6, 16, 18);
+    this.p('gen', 6, 8, 15, 18);
+    this.p('gen', 7, 1, 15, 17);
+    this.p('gen', 9, 1, 15, 19);
+    this.p('gen', 11, 1, 14, 18);
+    this.p('gen', 13, 1, 16, 18);
 
     // Table cluster 3
-    this.p('gen', 4, 4, 18, 15);
-    this.p('gen', 1, 5, 18, 14);
-    this.p('gen', 1, 7, 18, 16);
+    this.p('gen', 6, 8, 18, 15);
+    this.p('gen', 7, 1, 18, 14);
+    this.p('gen', 9, 1, 18, 16);
 
     // Reading nook
     this.p2('bed', 0, 2, 0, 19);
