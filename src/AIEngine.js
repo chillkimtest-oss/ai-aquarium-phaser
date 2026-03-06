@@ -86,7 +86,6 @@ export class AIEngine {
         `  { "action": "idle",                                        "dialogue": "...", "description": "..." }`;
 
       const headers = { 'Content-Type': 'application/json' };
-      if (this.apiKey) headers['Authorization'] = `Bearer ${this.apiKey}`;
 
       // Build body — compatible with Anthropic Messages API shape by default;
       // swap for OpenAI chat completions if needed by changing endpoint.
