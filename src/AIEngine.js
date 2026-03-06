@@ -116,7 +116,7 @@ export class AIEngine {
       }
 
       const decision = JSON.parse(text);
-      this._applyDecision(character, decision, objects);
+      this._applyDecision(character, decision, objects, simState);
     } catch (err) {
       console.warn(`[AIEngine] ${character.name}:`, err);
     } finally {
@@ -124,7 +124,7 @@ export class AIEngine {
     }
   }
 
-  _applyDecision(character, decision, objects) {
+  _applyDecision(character, decision, objects, simState) {
     if (!decision?.action) return;
 
     switch (decision.action) {
@@ -137,9 +137,12 @@ export class AIEngine {
       case 'interact': {
         const obj = objects.find(o => o.id === decision.targetId);
         if (obj) {
-          // Walk adjacent to the object; interaction fires on arrival via Engine
-          character.moveTo(obj.tx, obj.ty);
-          character._pendingInteract = obj.id;
+          // Walk to an adjacent walkable tile (same pattern as wander engine)
+          const adjTile = simState?.findAdjacentWalkable?.(obj.tx, obj.ty);
+          if (adjTile && character.moveTo(adjTile.tx, adjTile.ty)) {
+            character.targetObjectId = obj.id;
+            character.pendingAction  = 'use';
+          }
         }
         break;
       }
