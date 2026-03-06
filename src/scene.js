@@ -108,7 +108,11 @@ export class CafeScene extends Phaser.Scene {
       walkable,
       gridCols: GRID_COLS,
       gridRows: GRID_ROWS,
-      // aiEngine: new AIEngine({ endpoint: 'https://...', apiKey: '...' }),
+      aiEngine: new AIEngine({
+        endpoint: '/api/llm',
+        model: 'anthropic/claude-haiku-3',
+        decisionIntervalMs: 30_000,
+      }),
     });
 
     // Characters
