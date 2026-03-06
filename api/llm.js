@@ -27,7 +27,7 @@ export default async function handler(req, res) {
     const { model, max_tokens, system, messages } = req.body;
 
     // Use a cheap, fast model by default
-    const resolvedModel = model || 'anthropic/claude-haiku-3';
+    const resolvedModel = model || 'anthropic/claude-3-haiku';
 
     // OpenRouter uses OpenAI-compatible chat completions format
     const openRouterMessages = [];

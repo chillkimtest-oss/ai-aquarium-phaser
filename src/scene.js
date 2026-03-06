@@ -110,7 +110,7 @@ export class CafeScene extends Phaser.Scene {
       gridRows: GRID_ROWS,
       aiEngine: new AIEngine({
         endpoint: '/api/llm',
-        model: 'anthropic/claude-haiku-3',
+        model: 'anthropic/claude-3-haiku',
         decisionIntervalMs: 30_000,
       }),
     });
