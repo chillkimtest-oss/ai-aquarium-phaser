@@ -98,7 +98,18 @@ export class SimulationEngine {
 
     if (event) {
       const obj = this.objectEngine.getById(char.targetObjectId);
-      char.startInteraction(char.targetObjectId, obj ? obj.interactMs : 8000);
+
+      // Hold the character for the full auto_next duration if the new state has one;
+      // otherwise fall back to the object's generic interactMs.
+      let holdMs = obj ? obj.interactMs : 8000;
+      if (obj && event.state) {
+        const stateDef = obj.states[event.state];
+        if (stateDef?.auto_next?.after) {
+          holdMs = stateDef.auto_next.after * 1000;
+        }
+      }
+
+      char.startInteraction(char.targetObjectId, holdMs);
 
       if (event.speech) {
         char.pendingSpeech = event.speech;

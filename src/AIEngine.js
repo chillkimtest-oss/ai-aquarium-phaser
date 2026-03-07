@@ -48,7 +48,9 @@ export class AIEngine {
       let t = this._timers.get(char.name) ?? 0;
       t -= deltaMs;
 
-      if (t <= 0 && !this._pending.has(char.name)) {
+      // Don't make decisions while character is held at an object; let the
+      // timer keep ticking so the cooldown UI stays accurate.
+      if (t <= 0 && !this._pending.has(char.name) && char.action !== 'interacting') {
         this._timers.set(char.name, this.decisionIntervalMs);
         this._requestDecision(char, objects, simState);
       } else {
