@@ -174,7 +174,11 @@ export class AIEngine {
           // Walk Character A to a tile adjacent to Character B
           const adjTile = simState?.findAdjacentWalkable?.(Math.round(target.tx), Math.round(target.ty));
           if (adjTile && character.moveTo(adjTile.tx, adjTile.ty)) {
-            // Character B responds when A arrives
+            // Initiator says something via speech bubble
+            if (decision.dialogue) {
+              character.pendingSpeech = decision.dialogue;
+            }
+            // Character B responds
             if (decision.targetDialogue) {
               target.pendingSpeech = decision.targetDialogue;
             }
