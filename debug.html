@@ -677,6 +677,7 @@
           const toStr   = e.toLabel   ? ` \u2192 ${e.toLabel}` : ' \u2192 idle';
           const reason  = e.reason === 'object_unavailable' ? 'unavailable'
                         : e.reason === 'talk_target_moved'  ? 'target moved'
+                        : e.reason === 'plan_changed'        ? 'plan changed'
                         : e.reason ?? '';
           return `
             <div class="log-entry fallback">

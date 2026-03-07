@@ -166,7 +166,18 @@ export class AIEngine {
           // Release any pending object reservation before moving freely
           if (character.targetObjectId) {
             const prevObj = objects.find(o => o.id === character.targetObjectId);
-            if (prevObj) prevObj.release(character.name);
+            if (prevObj) {
+              prevObj.release(character.name);
+              if (simState?.pushEvent) {
+                simState.pushEvent({
+                  type:      'fallback',
+                  charLabel: character.label,
+                  reason:    'plan_changed',
+                  fromLabel: prevObj.label ?? prevObj.name,
+                  toLabel:   null,
+                });
+              }
+            }
             character.targetObjectId = null;
           }
           character.moveTo(decision.targetTile.tx, decision.targetTile.ty);
@@ -177,9 +188,13 @@ export class AIEngine {
         const obj = objects.find(o => o.id === decision.targetId);
         if (obj) {
           // If already heading to a different object, release that reservation first
+          let abandonedLabel = null;
           if (character.targetObjectId && character.targetObjectId !== obj.id) {
             const prevObj = objects.find(o => o.id === character.targetObjectId);
-            if (prevObj) prevObj.release(character.name);
+            if (prevObj) {
+              prevObj.release(character.name);
+              abandonedLabel = prevObj.label ?? prevObj.name;
+            }
             character.targetObjectId = null;
           }
 
@@ -192,8 +207,26 @@ export class AIEngine {
               if (obj.reserve(character.name)) { // claim slot; guard against any race
                 character.targetObjectId = obj.id;
                 character.pendingAction  = 'use';
+                if (abandonedLabel && simState?.pushEvent) {
+                  simState.pushEvent({
+                    type:      'fallback',
+                    charLabel: character.label,
+                    reason:    'plan_changed',
+                    fromLabel: abandonedLabel,
+                    toLabel:   obj.label ?? obj.name,
+                  });
+                }
               }
             }
+          } else if (abandonedLabel && simState?.pushEvent) {
+            // New target unavailable — character goes idle after abandoning previous
+            simState.pushEvent({
+              type:      'fallback',
+              charLabel: character.label,
+              reason:    'object_unavailable',
+              fromLabel: abandonedLabel,
+              toLabel:   null,
+            });
           }
         }
         break;
@@ -203,7 +236,18 @@ export class AIEngine {
         // Release any pending reservation, then stay put for one full decision interval
         if (character.targetObjectId) {
           const prevObj = objects.find(o => o.id === character.targetObjectId);
-          if (prevObj) prevObj.release(character.name);
+          if (prevObj) {
+            prevObj.release(character.name);
+            if (simState?.pushEvent) {
+              simState.pushEvent({
+                type:      'fallback',
+                charLabel: character.label,
+                reason:    'plan_changed',
+                fromLabel: prevObj.label ?? prevObj.name,
+                toLabel:   null,
+              });
+            }
+          }
           character.targetObjectId = null;
         }
         character.wanderTimer = this.decisionIntervalMs;
@@ -234,7 +278,18 @@ export class AIEngine {
           // Release any previous object reservation before walking to talk
           if (character.targetObjectId) {
             const prevObj = objects.find(o => o.id === character.targetObjectId);
-            if (prevObj) prevObj.release(character.name);
+            if (prevObj) {
+              prevObj.release(character.name);
+              if (simState?.pushEvent) {
+                simState.pushEvent({
+                  type:      'fallback',
+                  charLabel: character.label,
+                  reason:    'plan_changed',
+                  fromLabel: prevObj.label ?? prevObj.name,
+                  toLabel:   target.label,
+                });
+              }
+            }
             character.targetObjectId = null;
           }
 
