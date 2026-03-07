@@ -158,8 +158,9 @@
 
     .stat-bar { height: 3px; background: #2a2a3a; border-radius: 2px; margin-top: 2px; overflow: hidden; }
     .stat-fill { height: 100%; border-radius: 2px; transition: width 0.3s ease-out; }
-    .stat-fill.mood   { background: #cc77aa; }
-    .stat-fill.energy { background: #6a8aee; }
+    .stat-fill.mood        { background: #cc77aa; }
+    .stat-fill.energy      { background: #6a8aee; }
+    .stat-fill.hold-timer  { background: #ddaa55; }
 
     /* ── Event log ── */
     #log-section { display: flex; flex-direction: column; }
@@ -486,6 +487,21 @@
           ? (simEngine.objectEngine.getById(char.targetObjectId)?.name ?? char.targetObjectId)
           : '—';
 
+      // Hold countdown timer (shown while character is locked at an object)
+      let holdHtml = '';
+      if (char.action === 'interacting' && char.interactTimer > 0 && char.interactTimerMax > 0) {
+        const pct = Math.max(0, Math.min(100, (1 - char.interactTimer / char.interactTimerMax) * 100));
+        holdHtml = `
+          <div class="char-row" style="margin-top:4px">
+            <span>Hold</span>
+            <span class="char-value">${Math.ceil(char.interactTimer / 1000)}s</span>
+          </div>
+          <div class="stat-bar">
+            <div class="stat-fill hold-timer" style="width:${pct.toFixed(1)}%"></div>
+          </div>
+        `;
+      }
+
       // AI decision cooldown timer
       let cooldownHtml = '';
       if (aiEngine.enabled) {
@@ -535,6 +551,7 @@
         <div class="stat-bar">
           <div class="stat-fill energy" style="width:${char.energy}%"></div>
         </div>
+        ${holdHtml}
         ${cooldownHtml}
       `;
     }

@@ -122,8 +122,9 @@ export class Character {
     this.wanderTimer = 3000 + Math.random() * 5000; // 3–8 s
 
     // Interaction
-    this.interactTimer  = 0;
-    this.interactTarget = null;
+    this.interactTimer    = 0;
+    this.interactTimerMax = 0; // initial duration; used by UI for progress bar
+    this.interactTarget   = null;
 
     // Personality stats (0–100)
     this.mood   = 100;
@@ -195,9 +196,10 @@ export class Character {
   }
 
   startInteract(target, durationMs) {
-    this.action         = 'interacting';
-    this.interactTarget = target;
-    this.interactTimer  = durationMs;
+    this.action           = 'interacting';
+    this.interactTarget   = target;
+    this.interactTimer    = durationMs;
+    this.interactTimerMax = durationMs;
     if (this.sprite) {
       this.sprite.play(`${this.name}_idle_anim`, true);
     }
