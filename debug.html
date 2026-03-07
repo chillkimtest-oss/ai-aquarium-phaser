@@ -195,6 +195,9 @@
     }
     .log-tag.auto { background: #1a2a1a; color: #77cc77; }
     .log-tag.use  { background: #1a1a3a; color: #7799ee; }
+    .log-entry.ai .log-transition { color: #aa88ee; }
+    .log-tag.ai   { background: #2a1a4a; color: #aa88ee; }
+    .stat-fill.ai-cooldown { background: #aa88ee; }
   </style>
 </head>
 <body>
@@ -237,6 +240,7 @@
     import { ObjectEngine, OBJECT_DEFS } from './src/objects.js';
     import { SimulationEngine } from './src/Engine.js';
     import { Character } from './src/Character.js';
+    import { AIEngine } from './src/AIEngine.js';
 
     // ── Walkable grid (mirrors scene.js) ──────────────────────────────────────
 
@@ -269,7 +273,22 @@
     // ── Engine setup ──────────────────────────────────────────────────────────
 
     const walkable = buildWalkableGrid();
-    const simEngine = new SimulationEngine({ walkable, gridCols: GRID_COLS, gridRows: GRID_ROWS });
+
+    const aiEngine = new AIEngine({
+      endpoint: '/api/llm',
+      model: 'anthropic/claude-3-haiku',
+      decisionIntervalMs: 30_000,
+      onDecision: (char, decision, objects) => {
+        const targetName = decision.targetId
+          ? (objects.find(o => o.id === decision.targetId)?.name ?? decision.targetId)
+          : decision.targetTile
+            ? `(${decision.targetTile.tx},${decision.targetTile.ty})`
+            : null;
+        pushAILog(char.label, decision.action, targetName, decision.dialogue);
+      },
+    });
+
+    const simEngine = new SimulationEngine({ walkable, gridCols: GRID_COLS, gridRows: GRID_ROWS, aiEngine });
 
     for (const cfg of CHARS_CONFIG) {
       simEngine.addCharacter(new Character({
@@ -350,6 +369,12 @@
 
     function pushLog(objectId, fromState, toState, trigger) {
       log.unshift({ objectId, fromState, toState, trigger, time: simEngine.getSimTimeString() });
+      if (log.length > MAX_LOG) log.length = MAX_LOG;
+      logDirty = true;
+    }
+
+    function pushAILog(charLabel, action, target, dialogue) {
+      log.unshift({ type: 'ai', charLabel, action, target, dialogue, time: simEngine.getSimTimeString() });
       if (log.length > MAX_LOG) log.length = MAX_LOG;
       logDirty = true;
     }
@@ -454,6 +479,23 @@
           ? (simEngine.objectEngine.getById(char.targetObjectId)?.name ?? char.targetObjectId)
           : '—';
 
+      // AI decision cooldown timer
+      let cooldownHtml = '';
+      if (aiEngine.enabled) {
+        const remaining  = Math.max(0, aiEngine._timers.get(char.name) ?? aiEngine.decisionIntervalMs);
+        const pct        = Math.max(0, Math.min(100, (1 - remaining / aiEngine.decisionIntervalMs) * 100));
+        const secRemaining = Math.ceil(remaining / 1000);
+        cooldownHtml = `
+          <div class="char-row" style="margin-top:4px">
+            <span>AI next</span>
+            <span class="char-value">${secRemaining}s</span>
+          </div>
+          <div class="stat-bar">
+            <div class="stat-fill ai-cooldown" style="width:${pct.toFixed(1)}%"></div>
+          </div>
+        `;
+      }
+
       card.innerHTML = `
         <div class="character-name">${char.label}</div>
         <div class="char-row">
@@ -486,6 +528,7 @@
         <div class="stat-bar">
           <div class="stat-fill energy" style="width:${char.energy}%"></div>
         </div>
+        ${cooldownHtml}
       `;
     }
 
@@ -498,14 +541,28 @@
         el.innerHTML = '<div style="color:#555;padding:4px 0">No events yet.</div>';
         return;
       }
-      el.innerHTML = log.slice(0, 80).map(e => `
-        <div class="log-entry ${e.trigger === 'auto' ? 'auto' : 'interaction'}">
-          <span class="log-time">${e.time}</span>
-          <span class="log-obj">${e.objectId}</span>
-          <span class="log-transition">${e.fromState} &rarr; ${e.toState}</span>
-          <span class="log-tag ${e.trigger === 'auto' ? 'auto' : 'use'}">${e.trigger}</span>
-        </div>
-      `).join('');
+      el.innerHTML = log.slice(0, 80).map(e => {
+        if (e.type === 'ai') {
+          const targetStr   = e.target   ? ` \u2192 ${e.target}` : '';
+          const dialogueStr = e.dialogue ? ` \u201c${e.dialogue}\u201d` : '';
+          return `
+            <div class="log-entry ai">
+              <span class="log-time">${e.time}</span>
+              <span class="log-obj">${e.charLabel}</span>
+              <span class="log-transition">${e.action}${targetStr}${dialogueStr}</span>
+              <span class="log-tag ai">AI</span>
+            </div>
+          `;
+        }
+        return `
+          <div class="log-entry ${e.trigger === 'auto' ? 'auto' : 'interaction'}">
+            <span class="log-time">${e.time}</span>
+            <span class="log-obj">${e.objectId}</span>
+            <span class="log-transition">${e.fromState} &rarr; ${e.toState}</span>
+            <span class="log-tag ${e.trigger === 'auto' ? 'auto' : 'use'}">${e.trigger}</span>
+          </div>
+        `;
+      }).join('');
     }
 
     // ── Tick loop ─────────────────────────────────────────────────────────────
