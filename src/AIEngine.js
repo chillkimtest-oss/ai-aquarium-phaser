@@ -50,9 +50,9 @@ export class AIEngine {
       let t = this._timers.get(char.name) ?? 0;
       t -= deltaMs;
 
-      // Don't make decisions while character is held at an object; let the
-      // timer keep ticking so the cooldown UI stays accurate.
-      if (t <= 0 && !this._pending.has(char.name) && char.action !== 'interacting') {
+      // Don't make decisions while character is held at an object or in conversation;
+      // let the timer keep ticking so the cooldown UI stays accurate.
+      if (t <= 0 && !this._pending.has(char.name) && char.action !== 'interacting' && char.action !== 'talking') {
         this._timers.set(char.name, this.decisionIntervalMs);
         this._requestDecision(char, characters, objects, simState);
       } else {
@@ -202,34 +202,48 @@ export class AIEngine {
       case 'talk': {
         const target = characters.find(c => c.label === decision.targetCharacter);
         if (target) {
-          // Walk Character A to a tile adjacent to Character B
-          const adjTile = simState?.findAdjacentWalkable?.(Math.round(target.tx), Math.round(target.ty));
-          if (adjTile && character.moveTo(adjTile.tx, adjTile.ty)) {
-            // Initiator says something via speech bubble
-            if (decision.dialogue) {
-              character.pendingSpeech = decision.dialogue;
-            }
-            // Character B responds
-            if (decision.targetDialogue) {
-              target.pendingSpeech = decision.targetDialogue;
-            }
-            // Queue conversation event for the debug log
+          // Evaluate Phase: check if B can accept a conversation request.
+          // Accept if idle or walking; reject if interacting, talking, or otherwise busy.
+          const canAccept = target.action === 'idle' || target.action === 'walking';
+
+          if (!canAccept) {
+            // B is busy — log the rejection and let A fall back to idle/wander
             if (simState?.pushEvent) {
               simState.pushEvent({
-                type: 'conversation',
-                speakerLabel: character.label,
-                targetLabel: target.label,
-                dialogue: decision.dialogue || '',
-                response: decision.targetDialogue || '',
+                type:           'talk_rejected',
+                initiatorLabel: character.label,
+                targetLabel:    target.label,
+                reason:         target.action,
               });
             }
+            // A idles for the normal decision interval (fallback handled by Engine wander)
+            character.wanderTimer = this.decisionIntervalMs;
+            break;
+          }
+
+          // Release any previous object reservation before walking to talk
+          if (character.targetObjectId) {
+            const prevObj = objects.find(o => o.id === character.targetObjectId);
+            if (prevObj) prevObj.release(character.name);
+            character.targetObjectId = null;
+          }
+
+          // Request Phase: walk A to a tile adjacent to B.
+          // Arrival handler in Engine will start the shared talking state.
+          const adjTile = simState?.findAdjacentWalkable?.(Math.round(target.tx), Math.round(target.ty));
+          if (adjTile && character.moveTo(adjTile.tx, adjTile.ty)) {
+            // Store pending talk so Engine knows what to do on arrival
+            character.pendingTalkTarget   = target;
+            character.pendingTalkDialogue = decision.dialogue       || null;
+            character.pendingTalkResponse = decision.targetDialogue || null;
           }
         }
         break;
       }
     }
 
-    if (decision.dialogue) {
+    // For talk actions, dialogue is held until both characters enter talking state.
+    if (decision.dialogue && decision.action !== 'talk') {
       character.currentDialogue = decision.dialogue;
       character.dialogueTimer   = 5000;
     }
