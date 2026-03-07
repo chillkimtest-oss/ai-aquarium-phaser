@@ -104,6 +104,25 @@
 
     .position-hint { font-size: 10px; color: #555; }
 
+    .slot-info {
+      font-size: 10px;
+      margin-top: 4px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .slot-pips { display: flex; gap: 2px; }
+    .slot-pip {
+      width: 8px; height: 8px;
+      border-radius: 2px;
+      border: 1px solid #444;
+    }
+    .slot-pip.occupied  { background: #cc7755; border-color: #aa5533; }
+    .slot-pip.reserved  { background: #8888aa; border-color: #666688; }
+    .slot-pip.available { background: #2a2a3a; border-color: #444; }
+    .slot-label { color: #666; }
+    .slot-label.full { color: #cc7755; }
+
     .timer-bar {
       height: 4px;
       background: #2a2a40;
@@ -341,12 +360,13 @@
     });
 
     document.getElementById('btn-reset').addEventListener('click', () => {
-      // Reset object states to defaults
+      // Reset object states and slot tracking to defaults
       for (const def of OBJECT_DEFS) {
         const obj = simEngine.objectEngine.getById(def.id);
         if (!obj) continue;
         obj.state = def.state || 'idle';
         obj._resetAutoTimer();
+        obj.clearSlots();
         prevStateMap.set(def.id, obj.state);
       }
       // Reset sim clock
@@ -416,6 +436,7 @@
             <span class="state-badge" id="badge-${obj.id}"></span>
           </div>
           <div class="position-hint">tile (${obj.tx}, ${obj.ty})</div>
+          <div class="slot-info" id="slots-${obj.id}"></div>
           <div class="timer-bar" id="timerbar-${obj.id}" style="display:none">
             <div class="timer-fill" id="timerfill-${obj.id}" style="width:0%"></div>
           </div>
@@ -449,6 +470,22 @@
         intDiv.innerHTML = actions.map(a =>
           `<button onclick="window._dbInteract('${obj.id}','${a}')">${a}</button>`
         ).join('');
+      }
+
+      // Slot occupancy (update every frame)
+      const slotDiv = document.getElementById(`slots-${obj.id}`);
+      if (slotDiv) {
+        const si = obj.getSlotInfo();
+        const pips = [];
+        for (let i = 0; i < si.capacity; i++) {
+          let cls = 'available';
+          if (i < si.occupied)                      cls = 'occupied';
+          else if (i < si.occupied + si.reserved)   cls = 'reserved';
+          pips.push(`<div class="slot-pip ${cls}" title="${cls}"></div>`);
+        }
+        const labelCls = si.available === 0 ? 'slot-label full' : 'slot-label';
+        const labelTxt = si.available === 0 ? 'full' : `${si.available}/${si.capacity} free`;
+        slotDiv.innerHTML = `<div class="slot-pips">${pips.join('')}</div><span class="${labelCls}">${labelTxt}</span>`;
       }
 
       // Timer bar (update every frame regardless of state change)

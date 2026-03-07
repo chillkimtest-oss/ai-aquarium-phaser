@@ -73,7 +73,16 @@ export class AIEngine {
           const dy = obj.ty - character.ty;
           return Math.sqrt(dx * dx + dy * dy) <= 8;
         })
-        .map(o => ({ id: o.id, label: o.label, state: o.state }));
+        .map(o => {
+          const slot = o.getSlotInfo();
+          return {
+            id:        o.id,
+            label:     o.label,
+            state:     o.state,
+            slots:     `${slot.available}/${slot.capacity} available`,
+            available: slot.available > 0,
+          };
+        });
 
       const nearbyCharacters = characters
         .filter(c => {
@@ -146,6 +155,12 @@ export class AIEngine {
     switch (decision.action) {
       case 'move':
         if (decision.targetTile) {
+          // Release any pending object reservation before moving freely
+          if (character.targetObjectId) {
+            const prevObj = objects.find(o => o.id === character.targetObjectId);
+            if (prevObj) prevObj.release(character.name);
+            character.targetObjectId = null;
+          }
           character.moveTo(decision.targetTile.tx, decision.targetTile.ty);
         }
         break;
@@ -153,18 +168,34 @@ export class AIEngine {
       case 'interact': {
         const obj = objects.find(o => o.id === decision.targetId);
         if (obj) {
-          // Walk to an adjacent walkable tile (same pattern as wander engine)
-          const adjTile = simState?.findAdjacentWalkable?.(obj.tx, obj.ty);
-          if (adjTile && character.moveTo(adjTile.tx, adjTile.ty)) {
-            character.targetObjectId = obj.id;
-            character.pendingAction  = 'use';
+          // If already heading to a different object, release that reservation first
+          if (character.targetObjectId && character.targetObjectId !== obj.id) {
+            const prevObj = objects.find(o => o.id === character.targetObjectId);
+            if (prevObj) prevObj.release(character.name);
+            character.targetObjectId = null;
+          }
+
+          // Only commit if a slot is available
+          if (!obj.isFull()) {
+            // Walk to an adjacent walkable tile (same pattern as wander engine)
+            const adjTile = simState?.findAdjacentWalkable?.(obj.tx, obj.ty);
+            if (adjTile && character.moveTo(adjTile.tx, adjTile.ty)) {
+              obj.reserve(character.name); // claim slot before walking
+              character.targetObjectId = obj.id;
+              character.pendingAction  = 'use';
+            }
           }
         }
         break;
       }
 
       case 'idle':
-        // Override wander timer — stay put for one full decision interval
+        // Release any pending reservation, then stay put for one full decision interval
+        if (character.targetObjectId) {
+          const prevObj = objects.find(o => o.id === character.targetObjectId);
+          if (prevObj) prevObj.release(character.name);
+          character.targetObjectId = null;
+        }
         character.wanderTimer = this.decisionIntervalMs;
         break;
 

@@ -63,6 +63,10 @@ export class SimulationEngine {
     }
 
     for (const char of this.characters) {
+      // Save pre-update state to detect interaction-end transitions
+      const prevAction        = char.action;
+      const prevInteractTarget = char.interactTarget;
+
       // Handle arrival: character reached target object tile
       if (char.action === 'idle' && char.targetObjectId) {
         this._handleObjectArrival(char);
@@ -85,6 +89,11 @@ export class SimulationEngine {
 
       // Per-character update (movement, animations, sprite sync)
       char.update(deltaMs);
+
+      // Detect interaction end: release slot so other characters can use the object
+      if (prevAction === 'interacting' && char.action !== 'interacting' && prevInteractTarget) {
+        this.objectEngine.release(prevInteractTarget, char.name);
+      }
     }
   }
 
@@ -95,10 +104,14 @@ export class SimulationEngine {
    * Fires the 'use' transition and puts the character into 'interacting' state.
    */
   _handleObjectArrival(char) {
-    const event = this.objectEngine.interact(char.targetObjectId, char.pendingAction || 'use');
+    const objectId = char.targetObjectId;
+    const event = this.objectEngine.interact(objectId, char.pendingAction || 'use');
 
     if (event) {
-      const obj = this.objectEngine.getById(char.targetObjectId);
+      // Convert reservation → active occupancy
+      this.objectEngine.arrive(objectId, char.name);
+
+      const obj = this.objectEngine.getById(objectId);
 
       // Hold the character for the full auto_next duration if the new state has one;
       // otherwise fall back to the object's generic interactMs.
@@ -110,7 +123,7 @@ export class SimulationEngine {
         }
       }
 
-      char.startInteraction(char.targetObjectId, holdMs);
+      char.startInteraction(objectId, holdMs);
 
       if (event.speech) {
         char.pendingSpeech = event.speech;
@@ -119,6 +132,9 @@ export class SimulationEngine {
       if (event.emoji) {
         this.pendingEvents.push(event);
       }
+    } else {
+      // No valid transition — release the reservation
+      this.objectEngine.release(objectId, char.name);
     }
     // Always clear targeting so we don't re-fire on next idle frame
     char.targetObjectId = null;
@@ -132,17 +148,19 @@ export class SimulationEngine {
     if (Math.random() < 0.3) {
       const objects = this.objectEngine.getAll();
       if (objects.length > 0) {
-        // Shuffle and try each until one yields a reachable adjacent tile
+        // Shuffle and try each until one has an available slot and a reachable adjacent tile
         const shuffled = objects.slice().sort(() => Math.random() - 0.5);
         for (const obj of shuffled) {
+          if (obj.isFull()) continue; // skip objects at capacity
           const tile = this._findAdjacentWalkable(obj.tx, obj.ty);
           if (tile && char.moveTo(tile.tx, tile.ty)) {
+            obj.reserve(char.name); // claim a slot before walking
             char.targetObjectId = obj.id;
             char.pendingAction  = 'use';
             return;
           }
         }
-        // All objects unreachable — fall through to random wander
+        // All objects full or unreachable — fall through to random wander
       }
     }
 
