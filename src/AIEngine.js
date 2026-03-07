@@ -167,6 +167,14 @@ export class AIEngine {
   _applyDecision(character, decision, characters, objects, simState) {
     if (!decision?.action) return;
 
+    // Discard stale async decisions for characters already in a held state.
+    // The interaction/talk will release naturally when the timer expires, and
+    // applying a movement decision here would move the character away without
+    // releasing the object slot — causing a permanent stale occupancy.
+    if (character.action === 'interacting' || character.action === 'talking') {
+      return;
+    }
+
     switch (decision.action) {
       case 'move':
         if (decision.targetTile) {
