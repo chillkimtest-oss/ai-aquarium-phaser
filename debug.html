@@ -291,7 +291,8 @@
           ? (objects.find(o => o.id === decision.targetId)?.name ?? decision.targetId)
           : decision.targetTile
             ? `(${decision.targetTile.tx},${decision.targetTile.ty})`
-            : null;
+            : decision.targetCharacter
+              ?? null;
         pushAILog(char.label, decision.action, targetName, decision.dialogue);
       },
     });
