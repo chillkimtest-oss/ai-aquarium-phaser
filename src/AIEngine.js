@@ -29,6 +29,7 @@ export class AIEngine {
     this.apiKey             = config.apiKey             || null;
     this.model              = config.model              || 'claude-sonnet-4-6';
     this.decisionIntervalMs = config.decisionIntervalMs || 30_000;
+    this.onDecision         = config.onDecision         || null;
 
     this.enabled = !!this.endpoint;
 
@@ -160,6 +161,10 @@ export class AIEngine {
 
     if (decision.description) {
       console.log(`[${character.label}] ${decision.description}`);
+    }
+
+    if (this.onDecision) {
+      this.onDecision(character, decision, objects, simState);
     }
   }
 }
