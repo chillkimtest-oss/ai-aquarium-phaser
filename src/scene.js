@@ -2,6 +2,7 @@ import { Character }         from './Character.js';
 import { SimulationEngine } from './Engine.js';
 import { AIEngine }          from './AIEngine.js';
 import { showSpeech }        from './speechBubble.js';
+import { OBJECT_DEFS }       from './objects.js';
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
@@ -33,7 +34,7 @@ const CHARS = [
     dialogue: ['The bonsai looks healthy', 'I should water the plants', 'Such peaceful light...'],
   },
   {
-    name: 'Ash', label: 'Nyx', tx: 14, ty: 5,
+    name: 'Ash', label: 'Nyx', tx: 13, ty: 5,
     dialogue: ['I need more paint...', 'This light is perfect for sketching', 'Where did I put my brush?'],
   },
 ];
@@ -51,6 +52,13 @@ function buildWalkableGrid() {
       r.push(col >= 1 && col <= 17 && row >= 2 && row <= 9);
     }
     grid.push(r);
+  }
+  // Mark tiles occupied by objects as non-walkable
+  for (const def of OBJECT_DEFS) {
+    const { tx, ty } = def.position;
+    if (ty >= 0 && ty < GRID_ROWS && tx >= 0 && tx < GRID_COLS) {
+      grid[ty][tx] = false;
+    }
   }
   return grid;
 }
