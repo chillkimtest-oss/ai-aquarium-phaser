@@ -99,7 +99,13 @@ export class AIEngine {
           const dy = c.ty - character.ty;
           return Math.sqrt(dx * dx + dy * dy) <= 8;
         })
-        .map(c => ({ label: c.label, tx: Math.round(c.tx), ty: Math.round(c.ty), action: c.action }));
+        .map(c => ({
+          label:   c.label,
+          tx:      Math.round(c.tx),
+          ty:      Math.round(c.ty),
+          action:  c.action,
+          canTalk: c.action === 'idle' || c.action === 'walking',
+        }));
 
       const systemPrompt =
         `You are ${character.label}, a character in a cosy Japanese home simulation. ` +
@@ -116,7 +122,8 @@ export class AIEngine {
         `  { "action": "move",     "targetTile": {"tx": N, "ty": N}, "dialogue": "...", "description": "..." }\n` +
         `  { "action": "interact", "targetId": "object_id",          "dialogue": "...", "description": "..." }\n` +
         `  { "action": "idle",                                        "dialogue": "...", "description": "..." }\n` +
-        `  { "action": "talk",     "targetCharacter": "character_label", "dialogue": "what you say", "targetDialogue": "their response", "description": "..." }`;
+        `  { "action": "talk",     "targetCharacter": "character_label", "dialogue": "what you say", "targetDialogue": "their response", "description": "..." }\n` +
+        `IMPORTANT: Only choose "talk" if the target character has canTalk:true. Feel free to talk to any available character, not always the same one.`;
 
       const headers = { 'Content-Type': 'application/json' };
 
