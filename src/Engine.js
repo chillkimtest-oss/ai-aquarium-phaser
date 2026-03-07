@@ -64,7 +64,7 @@ export class SimulationEngine {
 
     for (const char of this.characters) {
       // Save pre-update state to detect interaction-end transitions
-      const prevAction        = char.action;
+      const prevAction         = char.action;
       const prevInteractTarget = char.interactTarget;
 
       // Handle arrival: character reached target object tile
@@ -75,6 +75,15 @@ export class SimulationEngine {
       // Handle arrival: character reached talk target
       if (char.action === 'idle' && char.pendingTalkTarget) {
         this._handleTalkArrival(char);
+      }
+
+      // Mid-walk: periodically re-route toward a moving talk target
+      if (char.action === 'walking' && char.pendingTalkTarget) {
+        char._talkRetargetTimer -= deltaMs;
+        if (char._talkRetargetTimer <= 0) {
+          char._talkRetargetTimer = 2000; // re-check every 2 s
+          this._updateTalkRoute(char);
+        }
       }
 
       // Trigger random wander (or object visit) when idle and timer expired
@@ -107,10 +116,18 @@ export class SimulationEngine {
   /**
    * Called when a character arrives at an object's adjacent tile.
    * Fires the 'use' transition and puts the character into 'interacting' state.
+   * If the object has no valid transition, finds an alternative instead of idling.
    */
   _handleObjectArrival(char) {
     const objectId = char.targetObjectId;
-    const event = this.objectEngine.interact(objectId, char.pendingAction || 'use');
+    const action   = char.pendingAction || 'use';
+
+    // Clear targeting immediately so we don't re-fire on the next idle frame.
+    // _fallbackToAlternativeObject may set a new targetObjectId if it finds one.
+    char.targetObjectId = null;
+    char.pendingAction  = null;
+
+    const event = this.objectEngine.interact(objectId, action);
 
     if (event) {
       // Convert reservation → active occupancy
@@ -130,31 +147,55 @@ export class SimulationEngine {
 
       char.startInteraction(objectId, holdMs);
 
-      if (event.speech) {
-        char.pendingSpeech = event.speech;
-      }
-
-      if (event.emoji) {
-        this.pendingEvents.push(event);
-      }
+      if (event.speech) char.pendingSpeech = event.speech;
+      if (event.emoji)  this.pendingEvents.push(event);
     } else {
-      // No valid transition — release the reservation
+      // No valid transition (object changed state mid-walk) — release the
+      // reservation and try to find an alternative object.
       this.objectEngine.release(objectId, char.name);
+      this._fallbackToAlternativeObject(char, objectId);
     }
-    // Always clear targeting so we don't re-fire on next idle frame
-    char.targetObjectId = null;
-    char.pendingAction  = null;
   }
 
   // ── Talk handshake ────────────────────────────────────────────────────────────
 
   /**
    * Called when a character arrives at the tile adjacent to their talk target.
-   * Re-evaluates B's availability; starts conversation or logs rejection.
+   * Checks proximity and re-evaluates B's availability before starting conversation.
    */
   _handleTalkArrival(char) {
     const target = char.pendingTalkTarget;
     char.pendingTalkTarget = null;
+
+    // Proximity check: target may have moved significantly during the walk.
+    const dx   = Math.round(target.tx) - Math.round(char.tx);
+    const dy   = Math.round(target.ty) - Math.round(char.ty);
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (dist > 3) {
+      // Target has drifted — try to follow if not too far
+      if (dist <= 10) {
+        const adjTile = this._findAdjacentWalkable(Math.round(target.tx), Math.round(target.ty));
+        if (adjTile && char.moveTo(adjTile.tx, adjTile.ty)) {
+          // Re-attach pending talk so we retry on next arrival
+          char.pendingTalkTarget   = target;
+          char._talkRetargetTimer  = 2000;
+          return;
+        }
+      }
+      // Too far or unreachable — abort
+      this.pendingEvents.push({
+        type:      'fallback',
+        charLabel: char.label,
+        reason:    'talk_target_moved',
+        fromLabel: target.label,
+        toLabel:   null,
+      });
+      char.pendingTalkDialogue = null;
+      char.pendingTalkResponse = null;
+      char.wanderTimer = 3000 + Math.random() * 5000;
+      return;
+    }
 
     // Re-check availability: accept if idle or walking, reject if busy
     const canTalk = target.action === 'idle' || target.action === 'walking';
@@ -230,6 +271,9 @@ export class SimulationEngine {
         const shuffled = objects.slice().sort(() => Math.random() - 0.5);
         for (const obj of shuffled) {
           if (obj.isFull()) continue; // skip objects at capacity
+          // Only target objects whose current state accepts a 'use' interaction
+          const stateDef = obj.states[obj.state];
+          if (!stateDef?.transitions?.use) continue;
           const tile = this._findAdjacentWalkable(obj.tx, obj.ty);
           if (tile && char.moveTo(tile.tx, tile.ty)) {
             obj.reserve(char.name); // claim a slot before walking
@@ -238,7 +282,7 @@ export class SimulationEngine {
             return;
           }
         }
-        // All objects full or unreachable — fall through to random wander
+        // All objects full/non-interactable/unreachable — fall through to random wander
       }
     }
 
@@ -262,6 +306,116 @@ export class SimulationEngine {
 
     if (!moved) {
       char.wanderTimer = 2000;
+    }
+  }
+
+  // ── Fallback helpers ─────────────────────────────────────────────────────────
+
+  /**
+   * Find the closest available object that `char` can interact with right now,
+   * excluding the object with `excludeId`.
+   * @returns {ObjectInstance|null}
+   */
+  _findAlternativeObject(char, excludeId) {
+    const objects = this.objectEngine.getAll();
+    let best     = null;
+    let bestDist = Infinity;
+
+    for (const obj of objects) {
+      if (obj.id === excludeId) continue;
+      if (obj.isFull()) continue;
+      // Require a usable state right now
+      const stateDef = obj.states[obj.state];
+      if (!stateDef?.transitions?.use) continue;
+      // Require a reachable adjacent tile
+      if (!this._findAdjacentWalkable(obj.tx, obj.ty)) continue;
+
+      const dx   = obj.tx - Math.round(char.tx);
+      const dy   = obj.ty - Math.round(char.ty);
+      const dist = dx * dx + dy * dy;
+      if (dist < bestDist) { bestDist = dist; best = obj; }
+    }
+
+    return best;
+  }
+
+  /**
+   * Called when a character's object interaction fails on arrival.
+   * Tries to redirect to the nearest available alternative; emits a 'fallback' event.
+   */
+  _fallbackToAlternativeObject(char, fromId) {
+    const fromObj     = this.objectEngine.getById(fromId);
+    const alternative = this._findAlternativeObject(char, fromId);
+
+    if (alternative) {
+      const adjTile = this._findAdjacentWalkable(alternative.tx, alternative.ty);
+      if (adjTile && char.moveTo(adjTile.tx, adjTile.ty)) {
+        alternative.reserve(char.name);
+        char.targetObjectId = alternative.id;
+        char.pendingAction  = 'use';
+
+        this.pendingEvents.push({
+          type:      'fallback',
+          charLabel: char.label,
+          reason:    'object_unavailable',
+          fromLabel: fromObj?.name ?? fromId,
+          toLabel:   alternative.name,
+        });
+        return;
+      }
+    }
+
+    // No usable alternative — idle
+    char.wanderTimer = 3000 + Math.random() * 5000;
+    this.pendingEvents.push({
+      type:      'fallback',
+      charLabel: char.label,
+      reason:    'object_unavailable',
+      fromLabel: fromObj?.name ?? fromId,
+      toLabel:   null,
+    });
+  }
+
+  /**
+   * Called periodically while a character is walking toward a talk target.
+   * Re-routes the character if the target has moved, or aborts if too far.
+   */
+  _updateTalkRoute(char) {
+    const target = char.pendingTalkTarget;
+    if (!target) return;
+
+    const dx   = Math.round(target.tx) - Math.round(char.tx);
+    const dy   = Math.round(target.ty) - Math.round(char.ty);
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    // If target has wandered more than 10 tiles away, give up
+    if (dist > 10) {
+      char.pendingTalkTarget   = null;
+      char.pendingTalkDialogue = null;
+      char.pendingTalkResponse = null;
+      char.path                = [];
+      char.action              = 'idle';
+      char.wanderTimer         = 3000 + Math.random() * 5000;
+
+      this.pendingEvents.push({
+        type:      'fallback',
+        charLabel: char.label,
+        reason:    'talk_target_moved',
+        fromLabel: target.label,
+        toLabel:   null,
+      });
+      return;
+    }
+
+    // Re-route only if the path end has drifted more than 1 tile from target
+    const pathEnd = char.path[char.path.length - 1];
+    if (pathEnd) {
+      const edx = pathEnd.tx - Math.round(target.tx);
+      const edy = pathEnd.ty - Math.round(target.ty);
+      if (Math.sqrt(edx * edx + edy * edy) > 1) {
+        const adjTile = this._findAdjacentWalkable(Math.round(target.tx), Math.round(target.ty));
+        if (adjTile) char.moveTo(adjTile.tx, adjTile.ty);
+      }
     }
   }
 

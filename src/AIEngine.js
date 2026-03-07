@@ -75,12 +75,20 @@ export class AIEngine {
         })
         .map(o => {
           const slot = o.getSlotInfo();
+          // Resolve reserved/occupied character names → display labels for LLM context
+          const reservedBy = (o.getReservations?.() ?? [])
+            .map(n => characters.find(c => c.name === n)?.label ?? n);
+          const occupiedBy = (o.getOccupants?.() ?? [])
+            .map(n => characters.find(c => c.name === n)?.label ?? n);
           return {
-            id:        o.id,
-            label:     o.label,
-            state:     o.state,
-            slots:     `${slot.available}/${slot.capacity} available`,
-            available: slot.available > 0,
+            id:         o.id,
+            label:      o.label,
+            state:      o.state,
+            slots:      `${slot.available}/${slot.capacity} available`,
+            available:  slot.available > 0,
+            // Blackboard: show who is already heading here or using it
+            intendedBy: reservedBy,
+            usedBy:     occupiedBy,
           };
         });
 
@@ -175,14 +183,16 @@ export class AIEngine {
             character.targetObjectId = null;
           }
 
-          // Only commit if a slot is available
-          if (!obj.isFull()) {
+          // Only commit if a slot is available and object is currently interactable
+          const stateDef = obj.states[obj.state];
+          if (!obj.isFull() && stateDef?.transitions?.use) {
             // Walk to an adjacent walkable tile (same pattern as wander engine)
             const adjTile = simState?.findAdjacentWalkable?.(obj.tx, obj.ty);
             if (adjTile && character.moveTo(adjTile.tx, adjTile.ty)) {
-              obj.reserve(character.name); // claim slot before walking
-              character.targetObjectId = obj.id;
-              character.pendingAction  = 'use';
+              if (obj.reserve(character.name)) { // claim slot; guard against any race
+                character.targetObjectId = obj.id;
+                character.pendingAction  = 'use';
+              }
             }
           }
         }
