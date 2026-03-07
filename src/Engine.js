@@ -52,6 +52,7 @@ export class SimulationEngine {
       this.aiEngine.update(deltaMs, this.characters, this.objectEngine.getAll(), {
         timeString: this.getSimTimeString(),
         findAdjacentWalkable: this._findAdjacentWalkable.bind(this),
+        pushEvent: (ev) => this.pendingEvents.push(ev),
       });
     }
 

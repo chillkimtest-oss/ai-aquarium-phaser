@@ -9,10 +9,12 @@
  *
  * The engine polls each character independently on a configurable interval.
  * Responses are expected as JSON with this shape:
- *   { "action": "move|interact|idle",
- *     "targetId": "object_id",          // for interact
- *     "targetTile": { "tx": 5, "ty": 9 }, // for move
+ *   { "action": "move|interact|idle|talk",
+ *     "targetId": "object_id",               // for interact
+ *     "targetTile": { "tx": 5, "ty": 9 },    // for move
+ *     "targetCharacter": "character_name",   // for talk
  *     "dialogue": "optional speech",
+ *     "targetDialogue": "response from target character", // for talk
  *     "description": "what the character is doing" }
  */
 
@@ -52,7 +54,7 @@ export class AIEngine {
       // timer keep ticking so the cooldown UI stays accurate.
       if (t <= 0 && !this._pending.has(char.name) && char.action !== 'interacting') {
         this._timers.set(char.name, this.decisionIntervalMs);
-        this._requestDecision(char, objects, simState);
+        this._requestDecision(char, characters, objects, simState);
       } else {
         this._timers.set(char.name, t);
       }
@@ -61,7 +63,7 @@ export class AIEngine {
 
   // ── Internal ──────────────────────────────────────────────────────────────
 
-  async _requestDecision(character, objects, simState) {
+  async _requestDecision(character, characters, objects, simState) {
     this._pending.add(character.name);
 
     try {
@@ -73,6 +75,15 @@ export class AIEngine {
         })
         .map(o => ({ id: o.id, label: o.label, state: o.state }));
 
+      const nearbyCharacters = characters
+        .filter(c => {
+          if (c.name === character.name) return false;
+          const dx = c.tx - character.tx;
+          const dy = c.ty - character.ty;
+          return Math.sqrt(dx * dx + dy * dy) <= 8;
+        })
+        .map(c => ({ name: c.name, label: c.label, tx: Math.round(c.tx), ty: Math.round(c.ty), action: c.action }));
+
       const systemPrompt =
         `You are ${character.label}, a character in a cosy Japanese home simulation. ` +
         `Decide what to do next based on your mood (${character.mood}/100) and energy (${character.energy}/100). ` +
@@ -83,10 +94,12 @@ export class AIEngine {
         `You are at tile (${Math.round(character.tx)}, ${Math.round(character.ty)}). ` +
         `Current action: ${character.action}. ` +
         `Nearby objects: ${JSON.stringify(nearbyObjects)}. ` +
+        `Nearby characters: ${JSON.stringify(nearbyCharacters)}. ` +
         `Choose one action:\n` +
         `  { "action": "move",     "targetTile": {"tx": N, "ty": N}, "dialogue": "...", "description": "..." }\n` +
         `  { "action": "interact", "targetId": "object_id",          "dialogue": "...", "description": "..." }\n` +
-        `  { "action": "idle",                                        "dialogue": "...", "description": "..." }`;
+        `  { "action": "idle",                                        "dialogue": "...", "description": "..." }\n` +
+        `  { "action": "talk",     "targetCharacter": "character_name", "dialogue": "what you say", "targetDialogue": "their response", "description": "..." }`;
 
       const headers = { 'Content-Type': 'application/json' };
 
@@ -119,7 +132,7 @@ export class AIEngine {
       }
 
       const decision = JSON.parse(text);
-      this._applyDecision(character, decision, objects, simState);
+      this._applyDecision(character, decision, characters, objects, simState);
     } catch (err) {
       console.warn(`[AIEngine] ${character.name}:`, err);
     } finally {
@@ -127,7 +140,7 @@ export class AIEngine {
     }
   }
 
-  _applyDecision(character, decision, objects, simState) {
+  _applyDecision(character, decision, characters, objects, simState) {
     if (!decision?.action) return;
 
     switch (decision.action) {
@@ -154,6 +167,31 @@ export class AIEngine {
         // Override wander timer — stay put for one full decision interval
         character.wanderTimer = this.decisionIntervalMs;
         break;
+
+      case 'talk': {
+        const target = characters.find(c => c.name === decision.targetCharacter);
+        if (target) {
+          // Walk Character A to a tile adjacent to Character B
+          const adjTile = simState?.findAdjacentWalkable?.(Math.round(target.tx), Math.round(target.ty));
+          if (adjTile && character.moveTo(adjTile.tx, adjTile.ty)) {
+            // Character B responds when A arrives
+            if (decision.targetDialogue) {
+              target.pendingSpeech = decision.targetDialogue;
+            }
+            // Queue conversation event for the debug log
+            if (simState?.pushEvent) {
+              simState.pushEvent({
+                type: 'conversation',
+                speakerLabel: character.label,
+                targetLabel: target.label,
+                dialogue: decision.dialogue || '',
+                response: decision.targetDialogue || '',
+              });
+            }
+          }
+        }
+        break;
+      }
     }
 
     if (decision.dialogue) {
