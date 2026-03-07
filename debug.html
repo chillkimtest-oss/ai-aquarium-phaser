@@ -174,6 +174,7 @@
     .action-badge.idle        { background: #1a2a1a; color: #77cc77; }
     .action-badge.walking     { background: #1a2a30; color: #77bbee; }
     .action-badge.interacting { background: #3a2a1a; color: #ddaa55; }
+    .action-badge.talking     { background: #2a1a3a; color: #ee77cc; }
 
     .stat-bar { height: 3px; background: #2a2a3a; border-radius: 2px; margin-top: 2px; overflow: hidden; }
     .stat-fill { height: 100%; border-radius: 2px; transition: width 0.3s ease-out; }
@@ -218,6 +219,10 @@
     .log-entry.ai .log-transition { color: #aa88ee; }
     .log-tag.ai   { background: #2a1a4a; color: #aa88ee; }
     .stat-fill.ai-cooldown { background: #aa88ee; }
+    .log-entry.talk .log-transition { color: #ee77cc; }
+    .log-tag.talk { background: #2a1a3a; color: #ee77cc; }
+    .log-entry.reject .log-transition { color: #ee7755; }
+    .log-tag.reject { background: #3a1a1a; color: #ee7755; }
   </style>
 </head>
 <body>
@@ -519,13 +524,17 @@
       const card = document.getElementById(`char-${i}`);
       if (!card) return;
 
-      const targetName = char.interactTarget
-        ? (simEngine.objectEngine.getById(char.interactTarget)?.name ?? char.interactTarget)
-        : char.targetObjectId
-          ? (simEngine.objectEngine.getById(char.targetObjectId)?.name ?? char.targetObjectId)
-          : '—';
+      const targetName = char.talkTarget
+        ? char.talkTarget.label
+        : char.pendingTalkTarget
+          ? `→ ${char.pendingTalkTarget.label}`
+          : char.interactTarget
+            ? (simEngine.objectEngine.getById(char.interactTarget)?.name ?? char.interactTarget)
+            : char.targetObjectId
+              ? (simEngine.objectEngine.getById(char.targetObjectId)?.name ?? char.targetObjectId)
+              : '—';
 
-      // Hold countdown timer (shown while character is locked at an object)
+      // Hold countdown timer (shown while character is locked at an object or talking)
       let holdHtml = '';
       if (char.action === 'interacting' && char.interactTimer > 0 && char.interactTimerMax > 0) {
         const pct = Math.max(0, Math.min(100, (1 - char.interactTimer / char.interactTimerMax) * 100));
@@ -533,6 +542,17 @@
           <div class="char-row" style="margin-top:4px">
             <span>Hold</span>
             <span class="char-value">${Math.ceil(char.interactTimer / 1000)}s</span>
+          </div>
+          <div class="stat-bar">
+            <div class="stat-fill hold-timer" style="width:${pct.toFixed(1)}%"></div>
+          </div>
+        `;
+      } else if (char.action === 'talking' && char.talkTimer > 0 && char.talkTimerMax > 0) {
+        const pct = Math.max(0, Math.min(100, (1 - char.talkTimer / char.talkTimerMax) * 100));
+        holdHtml = `
+          <div class="char-row" style="margin-top:4px">
+            <span>Talk</span>
+            <span class="char-value">${Math.ceil(char.talkTimer / 1000)}s</span>
           </div>
           <div class="stat-bar">
             <div class="stat-fill hold-timer" style="width:${pct.toFixed(1)}%"></div>
@@ -616,6 +636,27 @@
             </div>
           `;
         }
+        if (e.type === 'conversation_start') {
+          return `
+            <div class="log-entry talk">
+              <span class="log-time">${e.time}</span>
+              <span class="log-obj">${e.initiatorLabel}</span>
+              <span class="log-transition">talking \u2194 ${e.targetLabel}</span>
+              <span class="log-tag talk">TALK</span>
+            </div>
+          `;
+        }
+        if (e.type === 'talk_rejected') {
+          const reasonStr = e.reason ? ` (${e.reason})` : '';
+          return `
+            <div class="log-entry reject">
+              <span class="log-time">${e.time}</span>
+              <span class="log-obj">${e.initiatorLabel}</span>
+              <span class="log-transition">\u2192 ${e.targetLabel} rejected${reasonStr}</span>
+              <span class="log-tag reject">REJECT</span>
+            </div>
+          `;
+        }
         return `
           <div class="log-entry ${e.trigger === 'auto' ? 'auto' : 'interaction'}">
             <span class="log-time">${e.time}</span>
@@ -649,6 +690,17 @@
             prevStateMap.set(obj.id, obj.state);
           }
           updateObjectCard(obj);
+        }
+
+        // Consume talk-related events from the simulation engine
+        while (simEngine.pendingEvents.length > 0) {
+          const ev = simEngine.pendingEvents.shift();
+          if (ev.type === 'conversation_start' || ev.type === 'talk_rejected') {
+            log.unshift({ ...ev, time: simEngine.getSimTimeString() });
+            if (log.length > MAX_LOG) log.length = MAX_LOG;
+            logDirty = true;
+          }
+          // emoji events are consumed here too (no-op for debug — scene.js handles them)
         }
 
         // Update character cards

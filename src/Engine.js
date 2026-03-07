@@ -72,6 +72,11 @@ export class SimulationEngine {
         this._handleObjectArrival(char);
       }
 
+      // Handle arrival: character reached talk target
+      if (char.action === 'idle' && char.pendingTalkTarget) {
+        this._handleTalkArrival(char);
+      }
+
       // Trigger random wander (or object visit) when idle and timer expired
       if (char.action === 'idle' && char.wanderTimer <= 0) {
         this._doWander(char);
@@ -139,6 +144,79 @@ export class SimulationEngine {
     // Always clear targeting so we don't re-fire on next idle frame
     char.targetObjectId = null;
     char.pendingAction  = null;
+  }
+
+  // ── Talk handshake ────────────────────────────────────────────────────────────
+
+  /**
+   * Called when a character arrives at the tile adjacent to their talk target.
+   * Re-evaluates B's availability; starts conversation or logs rejection.
+   */
+  _handleTalkArrival(char) {
+    const target = char.pendingTalkTarget;
+    char.pendingTalkTarget = null;
+
+    // Re-check availability: accept if idle or walking, reject if busy
+    const canTalk = target.action === 'idle' || target.action === 'walking';
+
+    if (!canTalk) {
+      this.pendingEvents.push({
+        type:           'talk_rejected',
+        initiatorLabel: char.label,
+        targetLabel:    target.label,
+      });
+      char.wanderTimer = 3000 + Math.random() * 5000;
+      return;
+    }
+
+    this._startConversation(char, target);
+  }
+
+  /**
+   * Configurable conversation duration range (ms).
+   * Defaults to 10–15 s; override via constructor config.
+   */
+  get _talkDurationMs() {
+    return 10_000 + Math.random() * 5_000;
+  }
+
+  /**
+   * Synchronise charA and charB into a shared 'talking' state.
+   * Both face each other, AI timers are paused (via action check in AIEngine),
+   * and conversation ends naturally when the timer expires.
+   */
+  _startConversation(charA, charB) {
+    const duration = this._talkDurationMs;
+
+    // Face each other
+    const dx = Math.round(charB.tx) - Math.round(charA.tx);
+    const dy = Math.round(charB.ty) - Math.round(charA.ty);
+    if (Math.abs(dx) >= Math.abs(dy)) {
+      charA.facing = dx >= 0 ? 'right' : 'left';
+      charB.facing = dx >= 0 ? 'left'  : 'right';
+    } else {
+      charA.facing = dy >= 0 ? 'down' : 'up';
+      charB.facing = dy >= 0 ? 'up'   : 'down';
+    }
+
+    // Transfer queued dialogue to speech bubbles
+    if (charA.pendingTalkDialogue) {
+      charA.pendingSpeech          = charA.pendingTalkDialogue;
+      charA.pendingTalkDialogue    = null;
+    }
+    if (charA.pendingTalkResponse) {
+      charB.pendingSpeech          = charA.pendingTalkResponse;
+      charA.pendingTalkResponse    = null;
+    }
+
+    charA.startTalk(charB, duration);
+    charB.startTalk(charA, duration);
+
+    this.pendingEvents.push({
+      type:           'conversation_start',
+      initiatorLabel: charA.label,
+      targetLabel:    charB.label,
+    });
   }
 
   // ── Wander ───────────────────────────────────────────────────────────────────

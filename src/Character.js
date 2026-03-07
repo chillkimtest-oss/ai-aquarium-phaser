@@ -114,7 +114,7 @@ export class Character {
     this.moveProgress = 0;
     this.moveSpeed   = config.moveSpeed || 2; // tiles/sec
 
-    // State: 'idle' | 'walking' | 'interacting'
+    // State: 'idle' | 'walking' | 'interacting' | 'talking'
     this.action = 'idle';
     this.facing = 'down';
 
@@ -148,6 +148,16 @@ export class Character {
     // Object interaction targeting — set by engine, cleared on arrival
     this.targetObjectId = null;
     this.pendingAction  = null;
+
+    // Talk targeting — set by AIEngine when walking to meet another character
+    this.pendingTalkTarget   = null;  // Character ref awaiting arrival
+    this.pendingTalkDialogue = null;  // What A will say when conversation starts
+    this.pendingTalkResponse = null;  // What B will say when conversation starts
+
+    // Active conversation state
+    this.talkTimer    = 0;
+    this.talkTimerMax = 0;
+    this.talkTarget   = null;  // Character ref of current conversation partner
   }
 
   // ── Computed pixel position (Phaser setOrigin(0.5, 1) — feet at py) ─────────
@@ -205,6 +215,30 @@ export class Character {
     }
   }
 
+  /** Enter a shared talking state with `partner` for `durationMs` milliseconds. */
+  startTalk(partner, durationMs) {
+    // Stop any current movement
+    this.path        = [];
+    this.moveProgress = 0;
+
+    this.action       = 'talking';
+    this.talkTarget   = partner;
+    this.talkTimer    = durationMs;
+    this.talkTimerMax = durationMs;
+
+    // Clear any pending object interaction targeting
+    this.targetObjectId      = null;
+    this.pendingAction       = null;
+    // Clear any pending talk targeting (e.g. B was also walking to someone)
+    this.pendingTalkTarget   = null;
+    this.pendingTalkDialogue = null;
+    this.pendingTalkResponse = null;
+
+    if (this.sprite) {
+      this.sprite.play(`${this.name}_idle_anim`, true);
+    }
+  }
+
   // ── Per-frame update ──────────────────────────────────────────────────────────
 
   update(deltaMs) {
@@ -241,6 +275,14 @@ export class Character {
         this.action        = 'idle';
         this.interactTarget = null;
         this.wanderTimer   = 3000 + Math.random() * 5000;
+        this._playAnim('idle');
+      }
+    } else if (this.action === 'talking') {
+      this.talkTimer -= deltaMs;
+      if (this.talkTimer <= 0) {
+        this.action      = 'idle';
+        this.talkTarget  = null;
+        this.wanderTimer = 3000 + Math.random() * 5000;
         this._playAnim('idle');
       }
     }
