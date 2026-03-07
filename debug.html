@@ -256,6 +256,13 @@
         }
         grid.push(r);
       }
+      // Mark tiles occupied by objects as non-walkable
+      for (const def of OBJECT_DEFS) {
+        const { tx, ty } = def.position;
+        if (ty >= 0 && ty < GRID_ROWS && tx >= 0 && tx < GRID_COLS) {
+          grid[ty][tx] = false;
+        }
+      }
       return grid;
     }
 
@@ -266,7 +273,7 @@
         dialogue: ['Perfect brew today~', 'Want some tea?'] },
       { name: 'Lucy',   label: 'Sol',   tx: 10, ty: 6,
         dialogue: ['The bonsai looks healthy', 'Such peaceful light...'] },
-      { name: 'Ash',    label: 'Nyx',   tx: 14, ty: 5,
+      { name: 'Ash',    label: 'Nyx',   tx: 13, ty: 5,
         dialogue: ['I need more paint...', 'This light is perfect'] },
     ];
 
