@@ -223,6 +223,8 @@
     .log-tag.talk { background: #2a1a3a; color: #ee77cc; }
     .log-entry.reject .log-transition { color: #ee7755; }
     .log-tag.reject { background: #3a1a1a; color: #ee7755; }
+    .log-entry.fallback .log-transition { color: #ffaa55; }
+    .log-tag.fallback { background: #3a2a1a; color: #ffaa55; }
   </style>
 </head>
 <body>
@@ -480,13 +482,25 @@
       // Slot occupancy (update every frame)
       const slotDiv = document.getElementById(`slots-${obj.id}`);
       if (slotDiv) {
-        const si = obj.getSlotInfo();
+        const si          = obj.getSlotInfo();
+        const reservations = obj.getReservations ? obj.getReservations() : [];
+        const occupants    = obj.getOccupants    ? obj.getOccupants()    : [];
+
+        // Resolve internal char names → display labels via simEngine.characters
+        const labelFor = name => simEngine.characters.find(c => c.name === name)?.label ?? name;
+
         const pips = [];
         for (let i = 0; i < si.capacity; i++) {
-          let cls = 'available';
-          if (i < si.occupied)                      cls = 'occupied';
-          else if (i < si.occupied + si.reserved)   cls = 'reserved';
-          pips.push(`<div class="slot-pip ${cls}" title="${cls}"></div>`);
+          let cls   = 'available';
+          let title = 'available';
+          if (i < occupants.length) {
+            cls   = 'occupied';
+            title = `using: ${labelFor(occupants[i])}`;
+          } else if (i < occupants.length + reservations.length) {
+            cls   = 'reserved';
+            title = `heading here: ${labelFor(reservations[i - occupants.length])}`;
+          }
+          pips.push(`<div class="slot-pip ${cls}" title="${title}"></div>`);
         }
         const labelCls = si.available === 0 ? 'slot-label full' : 'slot-label';
         const labelTxt = si.available === 0 ? 'full' : `${si.available}/${si.capacity} free`;
@@ -524,15 +538,16 @@
       const card = document.getElementById(`char-${i}`);
       if (!card) return;
 
+      // Build a descriptive intent label: what the character is doing / heading to
       const targetName = char.talkTarget
-        ? char.talkTarget.label
+        ? `\u2194 ${char.talkTarget.label}`          // ↔ talking
         : char.pendingTalkTarget
-          ? `→ ${char.pendingTalkTarget.label}`
+          ? `\u2192 ${char.pendingTalkTarget.label} (following)` // → following
           : char.interactTarget
-            ? (simEngine.objectEngine.getById(char.interactTarget)?.name ?? char.interactTarget)
+            ? `\u25c6 ${simEngine.objectEngine.getById(char.interactTarget)?.name ?? char.interactTarget} (using)` // ◆ using
             : char.targetObjectId
-              ? (simEngine.objectEngine.getById(char.targetObjectId)?.name ?? char.targetObjectId)
-              : '—';
+              ? `\u2192 ${simEngine.objectEngine.getById(char.targetObjectId)?.name ?? char.targetObjectId} (reserved)` // → reserved
+              : '\u2014'; // —
 
       // Hold countdown timer (shown while character is locked at an object or talking)
       let holdHtml = '';
@@ -657,6 +672,21 @@
             </div>
           `;
         }
+        if (e.type === 'fallback') {
+          const fromStr = e.fromLabel ? e.fromLabel : '';
+          const toStr   = e.toLabel   ? ` \u2192 ${e.toLabel}` : ' \u2192 idle';
+          const reason  = e.reason === 'object_unavailable' ? 'unavailable'
+                        : e.reason === 'talk_target_moved'  ? 'target moved'
+                        : e.reason ?? '';
+          return `
+            <div class="log-entry fallback">
+              <span class="log-time">${e.time}</span>
+              <span class="log-obj">${e.charLabel}</span>
+              <span class="log-transition">${fromStr} ${reason}${toStr}</span>
+              <span class="log-tag fallback">FALLBACK</span>
+            </div>
+          `;
+        }
         return `
           <div class="log-entry ${e.trigger === 'auto' ? 'auto' : 'interaction'}">
             <span class="log-time">${e.time}</span>
@@ -692,15 +722,15 @@
           updateObjectCard(obj);
         }
 
-        // Consume talk-related events from the simulation engine
+        // Consume sim events: talk, fallback, emoji
         while (simEngine.pendingEvents.length > 0) {
           const ev = simEngine.pendingEvents.shift();
-          if (ev.type === 'conversation_start' || ev.type === 'talk_rejected') {
+          if (ev.type === 'conversation_start' || ev.type === 'talk_rejected' || ev.type === 'fallback') {
             log.unshift({ ...ev, time: simEngine.getSimTimeString() });
             if (log.length > MAX_LOG) log.length = MAX_LOG;
             logDirty = true;
           }
-          // emoji events are consumed here too (no-op for debug — scene.js handles them)
+          // emoji events: no-op for debug (scene.js handles floating emojis)
         }
 
         // Update character cards

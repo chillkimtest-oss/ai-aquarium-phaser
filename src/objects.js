@@ -267,6 +267,12 @@ class ObjectInstance {
     this._occupants.delete(charName);
   }
 
+  /** Returns the names of characters who have reserved a slot (walking toward this object). */
+  getReservations() { return Array.from(this._reservations); }
+
+  /** Returns the names of characters who are actively occupying a slot. */
+  getOccupants() { return Array.from(this._occupants); }
+
   /** Clear all reservations and occupancies (used on sim reset). */
   clearSlots() {
     this._reservations.clear();

@@ -149,6 +149,9 @@ export class Character {
     this.targetObjectId = null;
     this.pendingAction  = null;
 
+    // Fallback/re-routing: counts down; engine updates talk route when <= 0
+    this._talkRetargetTimer = 0;
+
     // Talk targeting — set by AIEngine when walking to meet another character
     this.pendingTalkTarget   = null;  // Character ref awaiting arrival
     this.pendingTalkDialogue = null;  // What A will say when conversation starts
