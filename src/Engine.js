@@ -63,6 +63,20 @@ export class SimulationEngine {
     }
 
     for (const char of this.characters) {
+      // Defensive release: if interactTarget is set but the character is no longer
+      // interacting, an external change (e.g. a stale async AI decision resolving
+      // between frames) moved them out of 'interacting' without triggering the
+      // normal detection below.  Release the slot now so the object doesn't stay
+      // permanently full.
+      if (char.interactTarget && char.action !== 'interacting') {
+        console.warn(
+          `[Engine] defensive release: ${char.name} has interactTarget ` +
+          `'${char.interactTarget}' but action='${char.action}' — releasing slot`
+        );
+        this.objectEngine.release(char.interactTarget, char.name);
+        char.interactTarget = null;
+      }
+
       // Save pre-update state to detect interaction-end transitions
       const prevAction         = char.action;
       const prevInteractTarget = char.interactTarget;
@@ -227,6 +241,15 @@ export class SimulationEngine {
    * and conversation ends naturally when the timer expires.
    */
   _startConversation(charA, charB) {
+    // Release any pending object reservation charB held while walking.
+    // startTalk() clears targetObjectId without calling objectEngine.release(),
+    // so we must do it here before the slot becomes permanently orphaned.
+    if (charB.targetObjectId) {
+      this.objectEngine.release(charB.targetObjectId, charB.name);
+      charB.targetObjectId = null;
+      charB.pendingAction  = null;
+    }
+
     const duration = this._talkDurationMs;
 
     // Face each other

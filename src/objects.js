@@ -261,8 +261,15 @@ class ObjectInstance {
 
   /**
    * Release a slot when the character finishes interacting or abandons the walk.
+   * Warns if charName was not a known occupant or reservation — signals an orphaned slot.
    */
   release(charName) {
+    if (!this._reservations.has(charName) && !this._occupants.has(charName)) {
+      console.warn(
+        `[objects] release('${this.id}', '${charName}'): ` +
+        `not a known occupant or reservation — possible orphaned slot`
+      );
+    }
     this._reservations.delete(charName);
     this._occupants.delete(charName);
   }
