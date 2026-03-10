@@ -159,6 +159,17 @@ export class SimulationEngine {
         }
       }
 
+      // Face toward the object tile before entering interaction
+      if (obj) {
+        const dx = obj.tx - Math.round(char.tx);
+        const dy = obj.ty - Math.round(char.ty);
+        if (Math.abs(dx) >= Math.abs(dy)) {
+          char.facing = dx >= 0 ? 'right' : 'left';
+        } else {
+          char.facing = dy >= 0 ? 'down' : 'up';
+        }
+      }
+
       char.startInteraction(objectId, holdMs);
 
       if (event.speech) char.pendingSpeech = event.speech;
