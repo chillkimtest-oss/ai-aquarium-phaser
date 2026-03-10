@@ -73,12 +73,20 @@ export class CafeScene extends Phaser.Scene {
   preload() {
     this.load.image('jp', 'assets/designs/Japanese_Home_1_preview_48x48.png');
 
+    // Interaction animation types → spritesheets (48×96 frames, 6 frames each)
+    const INTERACT_ANIMS = ['reading_48x48', 'sit_48x48', 'sit2_48x48', 'phone_48x48'];
+
     ['Amelia', 'Lucy', 'Ash'].forEach(name => {
       this.load.spritesheet(`${name}_idle`, `assets/characters/${name}_idle.png`, {
         frameWidth: 48, frameHeight: 96,
       });
       this.load.spritesheet(`${name}_walk`, `assets/characters/${name}_walk.png`, {
         frameWidth: 48, frameHeight: 96,
+      });
+      INTERACT_ANIMS.forEach(anim => {
+        this.load.spritesheet(`${name}_${anim}`, `assets/characters/${name}_${anim}.png`, {
+          frameWidth: 48, frameHeight: 96,
+        });
       });
     });
   }
@@ -90,6 +98,14 @@ export class CafeScene extends Phaser.Scene {
     const img = this.add.image(0, 0, 'jp').setOrigin(0, 0);
     this.cameras.main.setBounds(0, 0, img.width, img.height);
     this.cameras.main.centerOn(img.width / 2, img.height / 2);
+
+    // Interaction animation type → Phaser anim key suffix and spritesheet key suffix
+    const INTERACT_ANIM_DEFS = [
+      { type: 'reading', sheetKey: 'reading_48x48' },
+      { type: 'sit',     sheetKey: 'sit_48x48'     },
+      { type: 'sit2',    sheetKey: 'sit2_48x48'    },
+      { type: 'phone',   sheetKey: 'phone_48x48'   },
+    ];
 
     // Animations
     ['Amelia', 'Lucy', 'Ash'].forEach(name => {
@@ -105,6 +121,16 @@ export class CafeScene extends Phaser.Scene {
           key: `${name}_walk_${key}`,
           frames: this.anims.generateFrameNumbers(`${name}_walk`, { start, end }),
           frameRate: 8,
+          repeat: -1,
+        });
+      });
+
+      // Interaction animations (6-frame loop, 6 fps)
+      INTERACT_ANIM_DEFS.forEach(({ type, sheetKey }) => {
+        this.anims.create({
+          key: `${name}_interact_${type}`,
+          frames: this.anims.generateFrameNumbers(`${name}_${sheetKey}`, { start: 0, end: 5 }),
+          frameRate: 6,
           repeat: -1,
         });
       });

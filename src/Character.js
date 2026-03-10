@@ -204,17 +204,21 @@ export class Character {
   }
 
   /** Convenience wrapper — start interaction with a named object. */
-  startInteraction(objectId, durationMs) {
-    this.startInteract(objectId, durationMs);
+  startInteraction(objectId, durationMs, animType) {
+    this.startInteract(objectId, durationMs, animType);
   }
 
-  startInteract(target, durationMs) {
+  startInteract(target, durationMs, animType) {
     this.action           = 'interacting';
     this.interactTarget   = target;
     this.interactTimer    = durationMs;
     this.interactTimerMax = durationMs;
     if (this.sprite) {
-      this.sprite.play(`${this.name}_idle_anim`, true);
+      const interactKey = animType ? `${this.name}_interact_${animType}` : null;
+      const key = (interactKey && this.sprite.anims.exists(interactKey))
+        ? interactKey
+        : `${this.name}_idle_anim`;
+      this.sprite.play(key, true);
     }
   }
 

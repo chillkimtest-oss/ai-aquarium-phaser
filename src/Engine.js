@@ -170,7 +170,7 @@ export class SimulationEngine {
         }
       }
 
-      char.startInteraction(objectId, holdMs);
+      char.startInteraction(objectId, holdMs, obj?.interactAnim ?? null);
 
       if (event.speech) char.pendingSpeech = event.speech;
       if (event.emoji)  this.pendingEvents.push(event);
