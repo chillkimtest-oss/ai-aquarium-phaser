@@ -253,9 +253,6 @@ export class Character {
       const tileDurationMs = 1000 / this.moveSpeed;
       this.moveProgress += deltaMs / tileDurationMs;
 
-      // Update facing toward next tile in path
-      this._updateFacingFromNextTile();
-
       // Advance tiles
       while (this.moveProgress >= 1 && this.path.length > 0) {
         this.moveProgress -= 1;
@@ -265,6 +262,9 @@ export class Character {
         this.tx     = arrived.tx;
         this.ty     = arrived.ty;
       }
+
+      // Update facing after tile advance so animation matches the current movement direction
+      this._updateFacingFromNextTile();
 
       if (this.path.length === 0) {
         this.moveProgress = 0;
@@ -276,6 +276,8 @@ export class Character {
       }
     } else if (this.action === 'idle') {
       this.wanderTimer -= deltaMs;
+      // Ensure idle animation is always playing in idle state (handles external action resets)
+      this._playAnim('idle');
     } else if (this.action === 'interacting') {
       this.interactTimer -= deltaMs;
       if (this.interactTimer <= 0) {
