@@ -24,6 +24,7 @@ export const OBJECT_DEFS = [
     position: { tx: 3, ty: 3 },
     interactMs: 8000,
     state: 'idle',
+    spriteMap: { idle: 'stove_off', cooking: 'stove_on', done: 'stove_on' },
     states: {
       idle: {
         transitions: { use: { next: 'cooking' } },
@@ -67,6 +68,7 @@ export const OBJECT_DEFS = [
     position: { tx: 5, ty: 5 },
     interactMs: 6000,
     state: 'idle',
+    spriteMap: { idle: 'cup_empty', brewing: 'cup_full', ready: 'cup_full' },
     states: {
       idle: {
         transitions: { use: { next: 'brewing' } },
@@ -129,6 +131,7 @@ export const OBJECT_DEFS = [
     position: { tx: 15, ty: 3 },
     interactMs: 10000,
     state: 'idle',
+    spriteMap: { idle: 'book_closed', reading: 'book_open' },
     states: {
       idle: {
         transitions: { use: { next: 'reading' } },
@@ -187,6 +190,7 @@ export const OBJECT_DEFS = [
     position: { tx: 2, ty: 7 },
     interactMs: 12000,
     state: 'idle',
+    spriteMap: { idle: 'easel_blank', painting: 'easel_painting', done: 'easel_finished' },
     states: {
       idle: {
         transitions: { use: { next: 'painting' } },
@@ -237,6 +241,7 @@ class ObjectInstance {
     this.state       = def.state || 'idle';
     this.interactAnim = def.interactAnim || null;
     this.interactMs  = def.interactMs || 8000;
+    this.spriteMap   = def.spriteMap || null;
     this.autoTimer = 0;
     this._resetAutoTimer();
 
@@ -329,10 +334,11 @@ class ObjectInstance {
 
     const ns = this.states[this.state];
     return {
-      objectId: this.id,
-      state:    this.state,
-      speech:   ns?.speech || null,
-      emoji:    ns?.emoji  || null,
+      objectId:  this.id,
+      state:     this.state,
+      speech:    ns?.speech || null,
+      emoji:     ns?.emoji  || null,
+      spriteKey: this.spriteMap?.[this.state] ?? null,
     };
   }
 
@@ -354,10 +360,11 @@ class ObjectInstance {
 
     const ns = this.states[this.state];
     return {
-      objectId: this.id,
-      state:    this.state,
-      emoji:    ns?.emoji || null,
-      auto:     true,
+      objectId:  this.id,
+      state:     this.state,
+      emoji:     ns?.emoji || null,
+      auto:      true,
+      spriteKey: this.spriteMap?.[this.state] ?? null,
     };
   }
 }

@@ -73,6 +73,14 @@ export class CafeScene extends Phaser.Scene {
   preload() {
     this.load.image('jp', 'assets/designs/Japanese_Home_1_preview_48x48.png');
 
+    // Object state sprites (one image per visual state)
+    [
+      'stove_off', 'stove_on',
+      'book_closed', 'book_open',
+      'easel_blank', 'easel_painting', 'easel_finished',
+      'cup_empty', 'cup_full',
+    ].forEach(key => this.load.image(key, `assets/sprites/${key}.png`));
+
     // Interaction animation types → spritesheets (48×96 frames, 6 frames each)
     const INTERACT_ANIMS = ['reading_48x48', 'sit_48x48', 'sit2_48x48', 'phone_48x48'];
 
@@ -98,6 +106,20 @@ export class CafeScene extends Phaser.Scene {
     const img = this.add.image(0, 0, 'jp').setOrigin(0, 0);
     this.cameras.main.setBounds(0, 0, img.width, img.height);
     this.cameras.main.centerOn(img.width / 2, img.height / 2);
+
+    // Object state sprites — overlaid on the background tile, swapped on state transitions
+    // Objects with spriteMap: stove, tea_set, bookshelf, easel
+    this._objectSprites = {};
+    for (const def of OBJECT_DEFS) {
+      if (!def.spriteMap) continue;
+      const initKey = def.spriteMap[def.state] ?? null;
+      if (!initKey) continue;
+      const px = def.position.tx * TILE_SIZE;
+      const py = def.position.ty * TILE_SIZE;
+      this._objectSprites[def.id] = this.add.image(px, py, initKey)
+        .setOrigin(0, 0)
+        .setDepth(1);
+    }
 
     // Interaction animation type → Phaser anim key suffix and spritesheet key suffix
     const INTERACT_ANIM_DEFS = [
@@ -203,22 +225,30 @@ export class CafeScene extends Phaser.Scene {
       }
     }
 
-    // Float emoji above objects that completed a transition
+    // Process object state-transition events: swap sprites and float emojis
     if (this.engine.pendingEvents.length > 0) {
       for (const ev of this.engine.pendingEvents) {
-        if (!ev.emoji) continue;
         const obj = this.engine.objectEngine.getById(ev.objectId);
         if (!obj) continue;
-        const px = obj.tx * TILE_SIZE + TILE_SIZE / 2;
-        const py = obj.ty * TILE_SIZE;
-        const label = this.add.text(px, py, ev.emoji, { fontSize: '24px' }).setDepth(25);
-        this.tweens.add({
-          targets: label,
-          y:       label.y - 40,
-          alpha:   0,
-          duration: 2000,
-          onComplete: () => label.destroy(),
-        });
+
+        // Swap object sprite texture on state change
+        if (ev.spriteKey && this._objectSprites[ev.objectId]) {
+          this._objectSprites[ev.objectId].setTexture(ev.spriteKey);
+        }
+
+        // Float emoji above the object
+        if (ev.emoji) {
+          const px = obj.tx * TILE_SIZE + TILE_SIZE / 2;
+          const py = obj.ty * TILE_SIZE;
+          const label = this.add.text(px, py, ev.emoji, { fontSize: '24px' }).setDepth(25);
+          this.tweens.add({
+            targets: label,
+            y:       label.y - 40,
+            alpha:   0,
+            duration: 2000,
+            onComplete: () => label.destroy(),
+          });
+        }
       }
       this.engine.pendingEvents = [];
     }

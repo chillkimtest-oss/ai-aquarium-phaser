@@ -60,7 +60,7 @@ export class SimulationEngine {
     // Tick object state machines; collect auto-transition events
     const objEvents = this.objectEngine.tick(deltaMs);
     for (const ev of objEvents) {
-      if (ev.emoji) this.pendingEvents.push(ev);
+      if (ev.emoji || ev.spriteKey) this.pendingEvents.push(ev);
     }
 
     for (const char of this.characters) {
@@ -173,8 +173,8 @@ export class SimulationEngine {
 
       char.startInteraction(objectId, holdMs, obj?.interactAnim ?? null);
 
-      if (event.speech) char.pendingSpeech = event.speech;
-      if (event.emoji)  this.pendingEvents.push(event);
+      if (event.speech)    char.pendingSpeech = event.speech;
+      if (event.emoji || event.spriteKey) this.pendingEvents.push(event);
     } else {
       // No valid transition (object changed state mid-walk) — release the
       // reservation and try to find an alternative object.
