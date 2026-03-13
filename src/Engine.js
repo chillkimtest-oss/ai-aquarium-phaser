@@ -52,6 +52,7 @@ export class SimulationEngine {
       this.aiEngine.update(deltaMs, this.characters, this.objectEngine.getAll(), {
         timeString: this.getSimTimeString(),
         findAdjacentWalkable: this._findAdjacentWalkable.bind(this),
+        buildDynamicWalkable: (char) => this._buildDynamicWalkable(char),
         pushEvent: (ev) => this.pendingEvents.push(ev),
       });
     }
@@ -200,8 +201,9 @@ export class SimulationEngine {
     if (dist > 3) {
       // Target has drifted — try to follow if not too far
       if (dist <= 10) {
-        const adjTile = this._findAdjacentWalkable(Math.round(target.tx), Math.round(target.ty));
-        if (adjTile && char.moveTo(adjTile.tx, adjTile.ty)) {
+        const dynWalkable = this._buildDynamicWalkable(char);
+        const adjTile = this._findAdjacentWalkable(Math.round(target.tx), Math.round(target.ty), dynWalkable);
+        if (adjTile && char.moveTo(adjTile.tx, adjTile.ty, dynWalkable)) {
           // Re-attach pending talk so we retry on next arrival
           char.pendingTalkTarget   = target;
           char._talkRetargetTimer  = 2000;
@@ -297,6 +299,9 @@ export class SimulationEngine {
   // ── Wander ───────────────────────────────────────────────────────────────────
 
   _doWander(char) {
+    // Build a walkable grid that treats other characters' tiles as obstacles
+    const dynWalkable = this._buildDynamicWalkable(char);
+
     // 30% chance: walk to a random interactive object instead of wandering freely
     if (Math.random() < 0.3) {
       const objects = this.objectEngine.getAll();
@@ -308,8 +313,8 @@ export class SimulationEngine {
           // Only target objects whose current state accepts a 'use' interaction
           const stateDef = obj.states[obj.state];
           if (!stateDef?.transitions?.use) continue;
-          const tile = this._findAdjacentWalkable(obj.tx, obj.ty);
-          if (tile && char.moveTo(tile.tx, tile.ty)) {
+          const tile = this._findAdjacentWalkable(obj.tx, obj.ty, dynWalkable);
+          if (tile && char.moveTo(tile.tx, tile.ty, dynWalkable)) {
             obj.reserve(char.name); // claim a slot before walking
             char.targetObjectId = obj.id;
             char.pendingAction  = 'use';
@@ -334,12 +339,20 @@ export class SimulationEngine {
     for (let attempt = 0; attempt < 15; attempt++) {
       const tile = tiles[Math.floor(Math.random() * tiles.length)];
       if (tile.tx === cx && tile.ty === cy) continue;
-      moved = char.moveTo(tile.tx, tile.ty);
+      moved = char.moveTo(tile.tx, tile.ty, dynWalkable);
       if (moved) break;
     }
 
     if (!moved) {
-      char.wanderTimer = 2000;
+      char._failedMoveCount++;
+      if (char._failedMoveCount >= 3) {
+        // Deadlock escape: step onto any free adjacent tile to break the standstill
+        char._failedMoveCount = 0;
+        const escapeTile = this._findAdjacentWalkable(cx, cy, dynWalkable);
+        if (escapeTile) char.moveTo(escapeTile.tx, escapeTile.ty, dynWalkable);
+      }
+      // Retry quickly — the blocking character will likely have moved by then
+      char.wanderTimer = 500 + Math.random() * 500;
     }
   }
 
@@ -382,8 +395,9 @@ export class SimulationEngine {
     const alternative = this._findAlternativeObject(char, fromId);
 
     if (alternative) {
-      const adjTile = this._findAdjacentWalkable(alternative.tx, alternative.ty);
-      if (adjTile && char.moveTo(adjTile.tx, adjTile.ty)) {
+      const dynWalkable = this._buildDynamicWalkable(char);
+      const adjTile = this._findAdjacentWalkable(alternative.tx, alternative.ty, dynWalkable);
+      if (adjTile && char.moveTo(adjTile.tx, adjTile.ty, dynWalkable)) {
         alternative.reserve(char.name);
         char.targetObjectId = alternative.id;
         char.pendingAction  = 'use';
@@ -447,16 +461,18 @@ export class SimulationEngine {
       const edx = pathEnd.tx - Math.round(target.tx);
       const edy = pathEnd.ty - Math.round(target.ty);
       if (Math.sqrt(edx * edx + edy * edy) > 1) {
-        const adjTile = this._findAdjacentWalkable(Math.round(target.tx), Math.round(target.ty));
-        if (adjTile) char.moveTo(adjTile.tx, adjTile.ty);
+        const dynWalkable = this._buildDynamicWalkable(char);
+        const adjTile = this._findAdjacentWalkable(Math.round(target.tx), Math.round(target.ty), dynWalkable);
+        if (adjTile) char.moveTo(adjTile.tx, adjTile.ty, dynWalkable);
       }
     }
   }
 
   /**
    * Return the first walkable tile cardinally adjacent to (tx, ty), or null.
+   * @param {boolean[][]} [walkable] - grid to check; defaults to the static this.walkable
    */
-  _findAdjacentWalkable(tx, ty) {
+  _findAdjacentWalkable(tx, ty, walkable = this.walkable) {
     const dirs = [
       { tx, ty: ty - 1 },
       { tx, ty: ty + 1 },
@@ -465,10 +481,29 @@ export class SimulationEngine {
     ];
     for (const d of dirs) {
       if (d.tx >= 0 && d.tx < this.gridCols && d.ty >= 0 && d.ty < this.gridRows) {
-        if (this.walkable[d.ty]?.[d.tx]) return d;
+        if (walkable[d.ty]?.[d.tx]) return d;
       }
     }
     return null;
+  }
+
+  /**
+   * Clone the static walkable grid and mark every other character's current tile
+   * as blocked.  The calling character's own tile is left walkable.
+   * @param {object} excludeChar - the character doing the pathfinding (not blocked)
+   * @returns {boolean[][]}
+   */
+  _buildDynamicWalkable(excludeChar) {
+    const dynamic = this.walkable.map(row => row.slice());
+    for (const char of this.characters) {
+      if (char === excludeChar) continue;
+      const cx = Math.round(char.tx);
+      const cy = Math.round(char.ty);
+      if (cy >= 0 && cy < this.gridRows && cx >= 0 && cx < this.gridCols) {
+        dynamic[cy][cx] = false;
+      }
+    }
+    return dynamic;
   }
 
   _getWalkableTiles() {

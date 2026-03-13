@@ -175,6 +175,10 @@ export class AIEngine {
       return;
     }
 
+    // Build a walkable grid that avoids other characters' current tiles.
+    // Falls back gracefully if buildDynamicWalkable is not provided (e.g. in tests).
+    const dynWalkable = simState?.buildDynamicWalkable?.(character);
+
     switch (decision.action) {
       case 'move':
         if (decision.targetTile) {
@@ -195,7 +199,7 @@ export class AIEngine {
             }
             character.targetObjectId = null;
           }
-          character.moveTo(decision.targetTile.tx, decision.targetTile.ty);
+          character.moveTo(decision.targetTile.tx, decision.targetTile.ty, dynWalkable);
         }
         break;
 
@@ -216,9 +220,9 @@ export class AIEngine {
           // Only commit if a slot is available and object is currently interactable
           const stateDef = obj.states[obj.state];
           if (!obj.isFull() && stateDef?.transitions?.use) {
-            // Walk to an adjacent walkable tile (same pattern as wander engine)
-            const adjTile = simState?.findAdjacentWalkable?.(obj.tx, obj.ty);
-            if (adjTile && character.moveTo(adjTile.tx, adjTile.ty)) {
+            // Walk to an adjacent walkable tile, preferring tiles not occupied by others
+            const adjTile = simState?.findAdjacentWalkable?.(obj.tx, obj.ty, dynWalkable);
+            if (adjTile && character.moveTo(adjTile.tx, adjTile.ty, dynWalkable)) {
               if (obj.reserve(character.name)) { // claim slot; guard against any race
                 character.targetObjectId = obj.id;
                 character.pendingAction  = 'use';
@@ -308,10 +312,10 @@ export class AIEngine {
             character.targetObjectId = null;
           }
 
-          // Request Phase: walk A to a tile adjacent to B.
+          // Request Phase: walk A to a tile adjacent to B, avoiding other characters.
           // Arrival handler in Engine will start the shared talking state.
-          const adjTile = simState?.findAdjacentWalkable?.(Math.round(target.tx), Math.round(target.ty));
-          if (adjTile && character.moveTo(adjTile.tx, adjTile.ty)) {
+          const adjTile = simState?.findAdjacentWalkable?.(Math.round(target.tx), Math.round(target.ty), dynWalkable);
+          if (adjTile && character.moveTo(adjTile.tx, adjTile.ty, dynWalkable)) {
             // Store pending talk so Engine knows what to do on arrival
             character.pendingTalkTarget   = target;
             character.pendingTalkDialogue = decision.dialogue       || null;
