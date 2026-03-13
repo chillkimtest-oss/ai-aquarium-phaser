@@ -131,12 +131,32 @@ export class CafeScene extends Phaser.Scene {
     ];
 
     // Animations
+    // Idle spritesheet layout: 24 frames (4 directions × 6 frames)
+    //   down  0–5, left 6–11, right 12–17, up 18–23
+    const IDLE_DIRS = [
+      { key: 'down',  start:  0, end:  5 },
+      { key: 'left',  start:  6, end: 11 },
+      { key: 'right', start: 12, end: 17 },
+      { key: 'up',    start: 18, end: 23 },
+    ];
+
     ['Amelia', 'Lucy', 'Ash'].forEach(name => {
+      // Generic idle (backwards-compat, always faces down)
       this.anims.create({
         key: `${name}_idle_anim`,
         frames: this.anims.generateFrameNumbers(`${name}_idle`, { start: 0, end: 5 }),
         frameRate: 6,
         repeat: -1,
+      });
+
+      // Directional idle animations
+      IDLE_DIRS.forEach(({ key, start, end }) => {
+        this.anims.create({
+          key: `${name}_idle_${key}`,
+          frames: this.anims.generateFrameNumbers(`${name}_idle`, { start, end }),
+          frameRate: 6,
+          repeat: -1,
+        });
       });
 
       WALK_DIRS.forEach(({ key, start, end }) => {

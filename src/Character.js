@@ -226,10 +226,12 @@ export class Character {
     this.interactTimerMax = durationMs;
     if (this.sprite) {
       const interactKey = animType ? `${this.name}_interact_${animType}` : null;
-      const key = (interactKey && this.sprite.anims.exists(interactKey))
-        ? interactKey
-        : `${this.name}_idle_anim`;
-      this.sprite.play(key, true);
+      if (interactKey && this.sprite.anims.exists(interactKey)) {
+        this.sprite.play(interactKey, true);
+      } else {
+        // Use directional idle so the character faces the object
+        this._playDirectionalIdle();
+      }
     }
   }
 
@@ -252,9 +254,8 @@ export class Character {
     this.pendingTalkDialogue = null;
     this.pendingTalkResponse = null;
 
-    if (this.sprite) {
-      this.sprite.play(`${this.name}_idle_anim`, true);
-    }
+    // Play directional idle so the character visually faces the right way
+    this._playDirectionalIdle();
   }
 
   // ── Per-frame update ──────────────────────────────────────────────────────────
@@ -358,6 +359,23 @@ export class Character {
       this.sprite.play(key, true);
     }
     this.sprite.flipX = (type === 'walk' && this.facing === 'left');
+  }
+
+  /** Play the directional idle animation matching this.facing. */
+  _playDirectionalIdle() {
+    if (!this.sprite) return;
+    const key = `${this.name}_idle_${this.facing}`;
+    // Use scene.anims (global manager) — sprite.anims.exists only knows previously played keys
+    const manager = this.sprite.scene?.anims;
+    if (manager?.exists(key)) {
+      if (this.sprite.anims.currentAnim?.key !== key) {
+        this.sprite.play(key, true);
+      }
+      this.sprite.flipX = false;
+    } else {
+      // Fallback to generic idle
+      this._playAnim('idle');
+    }
   }
 
   _playWalkAnim() {
