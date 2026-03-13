@@ -152,6 +152,9 @@ export class Character {
     // Fallback/re-routing: counts down; engine updates talk route when <= 0
     this._talkRetargetTimer = 0;
 
+    // Deadlock escape: counts consecutive failed wander attempts; resets on success
+    this._failedMoveCount = 0;
+
     // Talk targeting — set by AIEngine when walking to meet another character
     this.pendingTalkTarget   = null;  // Character ref awaiting arrival
     this.pendingTalkDialogue = null;  // What A will say when conversation starts
@@ -183,10 +186,15 @@ export class Character {
 
   // ── Movement ─────────────────────────────────────────────────────────────────
 
-  moveTo(goalTx, goalTy) {
+  /**
+   * @param {number} goalTx
+   * @param {number} goalTy
+   * @param {boolean[][]} [walkable] - optional dynamic walkable grid; defaults to this.walkable
+   */
+  moveTo(goalTx, goalTy, walkable = this.walkable) {
     const sx = Math.round(this.tx);
     const sy = Math.round(this.ty);
-    const path = findPath(this.walkable, this.gridCols, this.gridRows, sx, sy, goalTx, goalTy);
+    const path = findPath(walkable, this.gridCols, this.gridRows, sx, sy, goalTx, goalTy);
 
     if (path && path.length > 0) {
       this.path         = path;
@@ -194,6 +202,9 @@ export class Character {
       this.prevTy       = sy;
       this.moveProgress = 0;
       this.action       = 'walking';
+
+      // Reset deadlock counter on successful path
+      this._failedMoveCount = 0;
 
       // Set initial facing from first step
       this._updateFacingFromNextTile();
