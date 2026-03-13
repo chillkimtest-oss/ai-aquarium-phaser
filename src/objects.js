@@ -20,6 +20,7 @@ export const OBJECT_DEFS = [
     id: 'stove',
     name: 'stove',
     capacity: 1,
+    interactAnim: 'phone',
     position: { tx: 3, ty: 3 },
     interactMs: 8000,
     state: 'idle',
@@ -43,6 +44,7 @@ export const OBJECT_DEFS = [
     id: 'fridge',
     name: 'fridge',
     capacity: 1,
+    interactAnim: 'phone',
     position: { tx: 2, ty: 3 },
     interactMs: 5000,
     state: 'idle',
@@ -61,6 +63,7 @@ export const OBJECT_DEFS = [
     id: 'tea_set',
     name: 'tea set',
     capacity: 1,
+    interactAnim: 'phone',
     position: { tx: 5, ty: 5 },
     interactMs: 6000,
     state: 'idle',
@@ -84,6 +87,7 @@ export const OBJECT_DEFS = [
     id: 'kotatsu',
     name: 'kotatsu',
     capacity: 2,
+    interactAnim: 'sit',
     position: { tx: 6, ty: 6 },
     interactMs: 12000,
     state: 'idle',
@@ -102,6 +106,7 @@ export const OBJECT_DEFS = [
     id: 'tv',
     name: 'TV',
     capacity: 2,
+    interactAnim: 'sit',
     position: { tx: 9, ty: 3 },
     interactMs: 10000,
     state: 'idle',
@@ -120,6 +125,7 @@ export const OBJECT_DEFS = [
     id: 'bookshelf',
     name: 'bookshelf',
     capacity: 1,
+    interactAnim: 'reading',
     position: { tx: 15, ty: 3 },
     interactMs: 10000,
     state: 'idle',
@@ -138,6 +144,7 @@ export const OBJECT_DEFS = [
     id: 'desk',
     name: 'desk',
     capacity: 1,
+    interactAnim: 'reading',
     position: { tx: 14, ty: 5 },
     interactMs: 8000,
     state: 'idle',
@@ -156,6 +163,7 @@ export const OBJECT_DEFS = [
     id: 'bed',
     name: 'bed',
     capacity: 1,
+    interactAnim: 'sit2',
     position: { tx: 16, ty: 5 },
     interactMs: 15000,
     state: 'idle',
@@ -175,6 +183,7 @@ export const OBJECT_DEFS = [
     id: 'easel',
     name: 'easel',
     capacity: 1,
+    interactAnim: 'phone',
     position: { tx: 2, ty: 7 },
     interactMs: 12000,
     state: 'idle',
@@ -198,6 +207,7 @@ export const OBJECT_DEFS = [
     id: 'bonsai',
     name: 'bonsai',
     capacity: 1,
+    interactAnim: 'phone',
     position: { tx: 11, ty: 8 },
     interactMs: 5000,
     state: 'idle',
@@ -217,15 +227,16 @@ export const OBJECT_DEFS = [
 
 class ObjectInstance {
   constructor(def) {
-    this.id        = def.id;
-    this.name      = def.name;
-    this.label     = def.name;           // compat for AIEngine
-    this.position  = def.position;
-    this.tx        = def.position.tx;    // compat for AIEngine distance checks
-    this.ty        = def.position.ty;
-    this.states    = def.states;
-    this.state     = def.state || 'idle';
-    this.interactMs = def.interactMs || 8000;
+    this.id          = def.id;
+    this.name        = def.name;
+    this.label       = def.name;           // compat for AIEngine
+    this.position    = def.position;
+    this.tx          = def.position.tx;    // compat for AIEngine distance checks
+    this.ty          = def.position.ty;
+    this.states      = def.states;
+    this.state       = def.state || 'idle';
+    this.interactAnim = def.interactAnim || null;
+    this.interactMs  = def.interactMs || 8000;
     this.autoTimer = 0;
     this._resetAutoTimer();
 
